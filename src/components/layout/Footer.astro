@@ -1,0 +1,25 @@
+---
+import { siteConfig } from '../../config/site';
+
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-white/5">
+  <div
+    class="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between"
+  >
+    <p>
+      © {year}
+      {siteConfig.name}. Built with Astro.
+    </p>
+
+    <a
+      href={siteConfig.links.github}
+      target="_blank"
+      rel="noreferrer"
+      class="transition-colors hover:text-zinc-300"
+    >
+      GitHub
+    </a>
+  </div>
+</footer>

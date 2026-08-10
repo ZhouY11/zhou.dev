@@ -1,0 +1,72 @@
+---
+import { siteConfig } from '../../config/site';
+---
+
+<section class="relative overflow-hidden">
+  <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+    <div
+      class="absolute top-[-200px] left-1/2 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-indigo-500/10 blur-[120px]"
+    >
+    </div>
+
+    <div
+      class="absolute top-[180px] right-[-200px] h-[400px] w-[400px] rounded-full bg-cyan-500/5 blur-[100px]"
+    >
+    </div>
+  </div>
+
+  <div class="mx-auto flex min-h-[calc(100svh-4rem)] max-w-6xl items-center px-6 py-24">
+    <div class="max-w-4xl">
+      <div
+        class="mb-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-400"
+      >
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true"> </span>
+
+        Frontend Engineer · AI Builder
+      </div>
+
+      <h1
+        class="max-w-4xl text-5xl leading-[1.05] font-semibold tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl"
+      >
+        构建可靠的前端系统，
+
+        <span
+          class="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent"
+        >
+          探索 AI 应用的下一种形态。
+        </span>
+      </h1>
+
+      <p class="mt-8 max-w-2xl text-base leading-8 text-zinc-400 sm:text-lg">
+        在这里记录前端架构、工程化、性能优化、微前端以及 AI Agent 开发中的实践与思考。
+      </p>
+
+      <div class="mt-10 flex flex-wrap gap-3">
+        <a
+          href="/blog"
+          class="rounded-full bg-white px-6 py-3 text-sm font-medium text-zinc-950 transition hover:bg-zinc-200"
+        >
+          阅读文章
+          <span aria-hidden="true"> →</span>
+        </a>
+
+        <a
+          href={siteConfig.links.github}
+          target="_blank"
+          rel="noreferrer"
+          class="rounded-full border border-white/10 bg-white/[0.02] px-6 py-3 text-sm font-medium text-white transition hover:bg-white/[0.06]"
+        >
+          GitHub
+        </a>
+      </div>
+
+      <div class="mt-14 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-600">
+        <span>Vue</span>
+        <span>TypeScript</span>
+        <span>Astro</span>
+        <span>Frontend Architecture</span>
+        <span>AI Agent</span>
+      </div>
+    </div>
+  </div>
+</section>
