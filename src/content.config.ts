@@ -5,22 +5,27 @@ import { defineCollection } from 'astro:content';
 const blog = defineCollection({
   loader: glob({
     base: './src/content/blog',
-    pattern: '**/*.{md,mdx}',
+    pattern: '**/*.md',
   }),
 
-  schema: z.object({
-    title: z.string(),
+  schema: ({ image }) =>
+    z.object({
+      title: z.string().min(1),
 
-    description: z.string(),
+      description: z.string().min(1),
 
-    pubDate: z.coerce.date(),
+      publishedAt: z.coerce.date(),
 
-    updatedDate: z.coerce.date().optional(),
+      updatedAt: z.coerce.date().optional(),
 
-    tags: z.array(z.string()).default([]),
+      tags: z.array(z.string()).default([]),
 
-    draft: z.boolean().default(false),
-  }),
+      featured: z.boolean().default(false),
+
+      draft: z.boolean().default(false),
+
+      cover: image().optional(),
+    }),
 });
 
 export const collections = {

@@ -1,46 +1,33 @@
 ---
-import { getCollection } from 'astro:content';
-
+import BlogCard from '../../components/blog/BlogCard.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPublishedPosts } from '../../lib/blog';
 
-const posts = await getCollection('blog', ({ data }) => !data.draft);
-
-posts.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+const posts = await getPublishedPosts();
 ---
 
-<BaseLayout title="Blog | Zhou" description="Frontend engineering and AI development notes.">
+<BaseLayout title="Blog" description="记录前端架构、工程化、性能优化与 AI Agent 开发实践。">
   <section class="mx-auto max-w-4xl px-6 py-24">
-    <div class="mb-14">
-      <p class="mb-3 text-sm font-medium text-indigo-400">BLOG</p>
+    <header class="mb-14">
+      <p class="mb-3 text-sm font-medium tracking-widest text-indigo-400 uppercase">Blog</p>
 
-      <h1 class="text-4xl font-bold tracking-tight">Notes & Articles</h1>
+      <h1 class="text-4xl font-semibold tracking-tight text-white sm:text-5xl">Notes & Articles</h1>
 
-      <p class="mt-4 text-zinc-400">关于前端架构、工程化、性能优化和 AI 的一些记录。</p>
-    </div>
+      <p class="mt-5 max-w-2xl leading-7 text-zinc-400">
+        关于前端架构、工程化、性能优化以及 AI Agent 的实践与思考。
+      </p>
+    </header>
 
-    <div class="space-y-4">
-      {
-        posts.map((post) => (
-          <a
-            href={`/blog/${post.id}`}
-            class="block rounded-2xl border border-white/10 p-6 transition hover:border-white/20 hover:bg-white/[0.03]"
-          >
-            <div class="mb-3 flex gap-2">
-              {post.data.tags.map((tag) => (
-                <span class="text-xs text-indigo-400">#{tag}</span>
-              ))}
-            </div>
-
-            <h2 class="text-xl font-semibold">{post.data.title}</h2>
-
-            <p class="mt-2 text-zinc-400">{post.data.description}</p>
-
-            <time class="mt-5 block text-sm text-zinc-600">
-              {post.data.pubDate.toLocaleDateString('zh-CN')}
-            </time>
-          </a>
-        ))
-      }
-    </div>
+    {
+      posts.length > 0 ? (
+        <div class="space-y-4">
+          {posts.map((post) => (
+            <BlogCard post={post} />
+          ))}
+        </div>
+      ) : (
+        <p class="text-zinc-500">暂时还没有发布文章。</p>
+      )
+    }
   </section>
 </BaseLayout>
