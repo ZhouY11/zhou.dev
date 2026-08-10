@@ -19,8 +19,13 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@astrojs/react": "^6.0.2",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "astro": "^7.2.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
@@ -33,6 +38,7 @@
     "eslint-plugin-astro": "^3.1.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-perfectionist": "^5.10.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
