@@ -1,0 +1,30 @@
+---
+import SectionHeading from './SectionHeading.astro';
+---
+
+<section id="about" class="mx-auto max-w-6xl px-6 py-24">
+  <div class="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+    <SectionHeading eyebrow="About" title="持续构建，也持续记录。" />
+
+    <div class="max-w-2xl space-y-6 leading-8 text-zinc-400">
+      <p>我长期关注现代前端架构、工程化、性能优化以及复杂业务系统中的工程实践。</p>
+
+      <p>
+        这个网站既用于整理技术知识，也用于记录我对 AI 应用开发、现代 Web
+        技术以及软件工程方法的持续探索。
+      </p>
+
+      <p>
+        与其追逐每一个新技术，我更关注技术背后的问题、设计取舍，以及它最终是否真正改善产品和开发体验。
+      </p>
+
+      <a
+        href="/blog"
+        class="inline-flex items-center text-sm font-medium text-white transition-colors hover:text-indigo-300"
+      >
+        阅读我的技术文章
+        <span class="ml-1" aria-hidden="true">→</span>
+      </a>
+    </div>
+  </div>
+</section>

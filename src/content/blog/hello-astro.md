@@ -24,7 +24,7 @@ draft: false
 
 ## Astro Component
 
-Astro Component 中：
+Astro Component 中的逻辑可以在构建阶段执行：
 
 ```astro
 ---
