@@ -1,4 +1,6 @@
 {
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
   "editor.formatOnSave": true,
 
   "editor.codeActionsOnSave": {
@@ -7,13 +9,7 @@
 
   "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "astro"],
 
-  "prettier.documentSelectors": ["**/*.astro"],
-
   "[astro]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-
-  "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
 
@@ -21,7 +17,19 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
 
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
   "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
 
