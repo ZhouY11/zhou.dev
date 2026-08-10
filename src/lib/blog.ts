@@ -7,3 +7,9 @@ export async function getPublishedPosts() {
 
   return posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime());
 }
+
+export async function getFeaturedPosts(limit = 3) {
+  const posts = await getPublishedPosts();
+
+  return posts.filter(({ data }) => data.featured).slice(0, limit);
+}
