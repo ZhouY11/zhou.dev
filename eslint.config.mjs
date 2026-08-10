@@ -3,6 +3,7 @@
 import js from '@eslint/js';
 import astro from 'eslint-plugin-astro';
 import perfectionist from 'eslint-plugin-perfectionist';
+import reactHooks from 'eslint-plugin-react-hooks';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
@@ -13,7 +14,7 @@ export default defineConfig([
 
   // JavaScript / TypeScript
   {
-    files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
+    files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
 
     extends: [js.configs.recommended, tseslint.configs.recommended],
   },
@@ -21,6 +22,12 @@ export default defineConfig([
   // Astro
   ...astro.configs.recommended,
   ...astro.configs['jsx-a11y-recommended'],
+
+  // React
+  {
+    files: ['**/*.{jsx,tsx}'],
+    extends: [reactHooks.configs.flat.recommended],
+  },
 
   // Common project rules
   {

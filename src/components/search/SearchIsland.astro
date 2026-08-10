@@ -1,0 +1,8 @@
+---
+import { getBlogSearchItems } from '../../lib/blog';
+import SearchCommand from './SearchCommand';
+
+const posts = await getBlogSearchItems();
+---
+
+<SearchCommand client:load posts={posts} />

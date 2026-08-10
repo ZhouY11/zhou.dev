@@ -1,5 +1,6 @@
 ---
 import { siteConfig } from '../../config/site';
+import SearchIsland from '../search/SearchIsland.astro';
 
 const pathname = Astro.url.pathname;
 
@@ -13,10 +14,14 @@ const isActive = (href: string) => {
 ---
 
 <header class="sticky top-0 z-50 border-b border-white/5 bg-zinc-950/70 backdrop-blur-xl">
-  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-    <a href="/" class="text-lg font-semibold tracking-tight text-white" aria-label="返回首页">
-      {siteConfig.name}<span class="text-indigo-400">.</span>
-    </a>
+  <div class="mx-auto flex h-16 max-w-6xl items-center gap-4 px-6">
+    <div class="flex w-full items-center justify-between gap-8 md:justify-normal">
+      <a href="/" class="text-lg font-semibold tracking-tight text-white" aria-label="返回首页">
+        {siteConfig.name}<span class="text-indigo-400">.</span>
+      </a>
+
+      <SearchIsland />
+    </div>
 
     <nav class="hidden items-center gap-1 md:flex" aria-label="主导航">
       {
