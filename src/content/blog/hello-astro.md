@@ -1,6 +1,6 @@
 ---
-title: "为什么我开始使用 Astro 搭建个人博客"
-description: "记录我从 Vue 技术栈转向 Astro 构建个人技术站的过程。"
+title: '为什么我开始使用 Astro 搭建个人博客'
+description: '记录我从 Vue 技术栈转向 Astro 构建个人技术站的过程。'
 pubDate: 2026-08-09
 tags:
   - Astro
@@ -29,6 +29,7 @@ Astro 页面中的 JavaScript 默认不会全部发送到浏览器：
 
 \`\`\`astro
 ---
+
 const message = "Hello Astro";
 ---
 

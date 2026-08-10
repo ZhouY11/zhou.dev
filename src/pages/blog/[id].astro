@@ -1,17 +1,10 @@
 ---
-import {
-  getCollection,
-  render,
-  type CollectionEntry,
-} from "astro:content";
+import { getCollection, render, type CollectionEntry } from 'astro:content';
 
-import BaseLayout from "../../layouts/BaseLayout.astro";
+import BaseLayout from '../../layouts/BaseLayout.astro';
 
 export async function getStaticPaths() {
-  const posts = await getCollection(
-    "blog",
-    ({ data }) => !data.draft,
-  );
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
 
   return posts.map((post) => ({
     params: {
@@ -25,7 +18,7 @@ export async function getStaticPaths() {
 }
 
 interface Props {
-  post: CollectionEntry<"blog">;
+  post: CollectionEntry<'blog'>;
 }
 
 const { post } = Astro.props;
@@ -33,50 +26,28 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 ---
 
-<BaseLayout
-  title={`${post.data.title} | Zhou`}
-  description={post.data.description}
->
-  <article
-    class="mx-auto max-w-3xl px-6 py-24"
-  >
+<BaseLayout title={`${post.data.title} | Zhou`} description={post.data.description}>
+  <article class="mx-auto max-w-3xl px-6 py-24">
     <header class="mb-14">
-
       <div class="mb-4 flex gap-2">
-        {
-          post.data.tags.map((tag) => (
-            <span class="text-sm text-indigo-400">
-              #{tag}
-            </span>
-          ))
-        }
+        {post.data.tags.map((tag) => <span class="text-sm text-indigo-400">#{tag}</span>)}
       </div>
 
-      <h1
-        class="text-4xl leading-tight font-bold tracking-tight sm:text-5xl"
-      >
+      <h1 class="text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
         {post.data.title}
       </h1>
 
-      <p
-        class="mt-5 text-lg leading-8 text-zinc-400"
-      >
+      <p class="mt-5 text-lg leading-8 text-zinc-400">
         {post.data.description}
       </p>
 
-      <time
-        class="mt-6 block text-sm text-zinc-600"
-      >
-        {post.data.pubDate.toLocaleDateString(
-          "zh-CN",
-        )}
+      <time class="mt-6 block text-sm text-zinc-600">
+        {post.data.pubDate.toLocaleDateString('zh-CN')}
       </time>
-
     </header>
 
     <div class="prose prose-invert max-w-none">
       <Content />
     </div>
-
   </article>
 </BaseLayout>
