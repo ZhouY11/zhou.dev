@@ -1,7 +1,39 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  --color-bg: var(--site-bg);
+  --color-bg-elevated: var(--site-bg-elevated);
+  --color-bg-muted: var(--site-bg-muted);
+
+  --color-fg: var(--site-fg);
+  --color-fg-muted: var(--site-fg-muted);
+  --color-fg-subtle: var(--site-fg-subtle);
+
+  --color-border: var(--site-border);
+
+  --color-accent: var(--site-accent);
+  --color-accent-soft: var(--site-accent-soft);
+}
+
 :root {
+  --site-bg: #09090b;
+  --site-bg-elevated: #111113;
+  --site-bg-muted: #18181b;
+
+  --site-fg: #fafafa;
+  --site-fg-muted: #a1a1aa;
+  --site-fg-subtle: #71717a;
+
+  --site-border: rgb(255 255 255 / 10%);
+
+  --site-accent: #818cf8;
+  --site-accent-soft: rgb(99 102 241 / 10%);
+
+  color-scheme: dark;
+
   font-family:
     Inter,
     ui-sans-serif,
@@ -10,23 +42,38 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
+}
 
-  color-scheme: dark;
-  background: #09090b;
+:root[data-theme='light'] {
+  --site-bg: #fafafa;
+  --site-bg-elevated: #ffffff;
+  --site-bg-muted: #f4f4f5;
+
+  --site-fg: #18181b;
+  --site-fg-muted: #52525b;
+  --site-fg-subtle: #71717a;
+
+  --site-border: rgb(24 24 27 / 10%);
+
+  --site-accent: #4f46e5;
+  --site-accent-soft: rgb(79 70 229 / 8%);
+
+  color-scheme: light;
 }
 
 html {
   min-width: 320px;
-  background: #09090b;
+  background: var(--site-bg);
   scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
 
-  color: #fafafa;
+  color: var(--site-fg);
 
-  background: radial-gradient(circle at 50% -20%, rgb(99 102 241 / 10%), transparent 35%), #09090b;
+  background:
+    radial-gradient(circle at 50% -20%, var(--site-accent-soft), transparent 35%), var(--site-bg);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -36,6 +83,6 @@ body {
 }
 
 ::selection {
-  background: rgb(99 102 241 / 35%);
-  color: #fff;
+  background: var(--site-accent-soft);
+  color: var(--site-fg);
 }

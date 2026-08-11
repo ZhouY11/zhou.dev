@@ -17,22 +17,18 @@ const { post, olderPost, newerPost } = Astro.props;
   <article class="mx-auto max-w-3xl px-6 py-24">
     <header class="mb-14">
       <div class="mb-5 flex flex-wrap gap-2">
-        {
-          post.data.tags.map((tag) => (
-            <span class="text-sm font-medium text-indigo-400">#{tag}</span>
-          ))
-        }
+        {post.data.tags.map((tag) => <span class="text-sm font-medium text-accent">#{tag}</span>)}
       </div>
 
-      <h1 class="text-4xl leading-tight font-semibold tracking-tight text-white sm:text-5xl">
+      <h1 class="text-4xl leading-tight font-semibold tracking-tight text-fg sm:text-5xl">
         {post.data.title}
       </h1>
 
-      <p class="mt-6 text-lg leading-8 text-zinc-400">
+      <p class="mt-6 text-lg leading-8 text-fg-muted">
         {post.data.description}
       </p>
 
-      <div class="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm text-zinc-500">
+      <div class="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm text-fg-subtle">
         <time datetime={post.data.publishedAt.toISOString()}>
           发布于 {formatDate(post.data.publishedAt)}
         </time>
@@ -48,7 +44,7 @@ const { post, olderPost, newerPost } = Astro.props;
     </header>
 
     <div
-      class="prose max-w-none prose-zinc prose-invert prose-headings:scroll-mt-24 prose-a:text-indigo-300 prose-pre:border prose-pre:border-white/10"
+      class="prose max-w-none prose-zinc dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-accent prose-pre:border prose-pre:border-border"
     >
       <slot />
     </div>
@@ -56,18 +52,18 @@ const { post, olderPost, newerPost } = Astro.props;
     {
       (newerPost || olderPost) && (
         <nav
-          class="mt-16 grid gap-4 border-t border-white/10 pt-8 sm:grid-cols-2"
+          class="mt-16 grid gap-4 border-t border-border pt-8 sm:grid-cols-2"
           aria-label="文章导航"
         >
           <div>
             {newerPost && (
               <a
                 href={`/blog/${newerPost.id}`}
-                class="group block rounded-xl border border-white/10 p-4 hover:border-white/20"
+                class="group block rounded-xl border border-border p-4 hover:border-white/20"
               >
-                <span class="text-xs text-zinc-500">较新的文章</span>
+                <span class="text-xs text-fg-subtle">较新的文章</span>
 
-                <span class="mt-2 block text-sm text-zinc-300 group-hover:text-white">
+                <span class="mt-2 block text-sm text-fg-muted group-hover:text-fg">
                   ← {newerPost.data.title}
                 </span>
               </a>
@@ -78,11 +74,11 @@ const { post, olderPost, newerPost } = Astro.props;
             {olderPost && (
               <a
                 href={`/blog/${olderPost.id}`}
-                class="group block rounded-xl border border-white/10 p-4 text-right hover:border-white/20"
+                class="group block rounded-xl border border-border p-4 text-right hover:border-white/20"
               >
-                <span class="text-xs text-zinc-500">较早的文章</span>
+                <span class="text-xs text-fg-subtle">较早的文章</span>
 
-                <span class="mt-2 block text-sm text-zinc-300 group-hover:text-white">
+                <span class="mt-2 block text-sm text-fg-muted group-hover:text-fg">
                   {olderPost.data.title} →
                 </span>
               </a>

@@ -1,0 +1,126 @@
+---
+const options = [
+  {
+    value: 'system',
+    label: 'System',
+  },
+  {
+    value: 'light',
+    label: 'Light',
+  },
+  {
+    value: 'dark',
+    label: 'Dark',
+  },
+] as const;
+---
+
+<details data-theme-switcher class="relative">
+  <summary
+    aria-label="切换主题"
+    class="flex cursor-pointer list-none items-center rounded-lg border border-border px-3 py-2 text-sm text-fg-muted transition-colors hover:bg-bg-muted hover:text-fg"
+  >
+    <span aria-hidden="true">◐</span>
+
+    <span class="sr-only"> 主题 </span>
+  </summary>
+
+  <div
+    role="group"
+    aria-label="选择主题"
+    class="absolute top-12 right-0 z-50 min-w-36 rounded-xl border border-border bg-bg-elevated p-1.5 shadow-xl"
+  >
+    {
+      options.map(({ value, label }) => (
+        <button
+          type="button"
+          data-theme-option={value}
+          aria-pressed="false"
+          class="block w-full rounded-lg px-3 py-2 text-left text-sm text-fg-muted transition-colors hover:bg-bg-muted hover:text-fg aria-pressed:bg-bg-muted aria-pressed:text-fg"
+        >
+          {label}
+        </button>
+      ))
+    }
+  </div>
+</details>
+
+<script>
+  type ThemePreference = 'system' | 'light' | 'dark';
+  type ResolvedTheme = 'light' | 'dark';
+
+  const STORAGE_KEY = 'theme';
+
+  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function getPreference(): ThemePreference {
+    const preference = document.documentElement.dataset.themePreference;
+
+    if (preference === 'light' || preference === 'dark') {
+      return preference;
+    }
+
+    return 'system';
+  }
+
+  function resolveTheme(preference: ThemePreference): ResolvedTheme {
+    if (preference === 'system') {
+      return systemTheme.matches ? 'dark' : 'light';
+    }
+
+    return preference;
+  }
+
+  function syncControls(preference: ThemePreference) {
+    document.querySelectorAll<HTMLButtonElement>('[data-theme-option]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.themeOption === preference));
+    });
+  }
+
+  function applyTheme(preference: ThemePreference, persist = true) {
+    const root = document.documentElement;
+
+    const resolvedTheme = resolveTheme(preference);
+
+    root.dataset.theme = resolvedTheme;
+    root.dataset.themePreference = preference;
+
+    root.style.colorScheme = resolvedTheme;
+
+    if (persist) {
+      try {
+        if (preference === 'system') {
+          localStorage.removeItem(STORAGE_KEY);
+        } else {
+          localStorage.setItem(STORAGE_KEY, preference);
+        }
+      } catch {
+        /* empty */
+      }
+    }
+
+    syncControls(preference);
+  }
+
+  const switcher = document.querySelector<HTMLDetailsElement>('[data-theme-switcher]');
+
+  if (switcher) {
+    syncControls(getPreference());
+
+    switcher.querySelectorAll<HTMLButtonElement>('[data-theme-option]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const preference = button.dataset.themeOption as ThemePreference;
+
+        applyTheme(preference);
+
+        switcher.open = false;
+      });
+    });
+  }
+
+  systemTheme.addEventListener('change', () => {
+    if (getPreference() === 'system') {
+      applyTheme('system', false);
+    }
+  });
+</script>
