@@ -9,10 +9,10 @@ const { project } = Astro.props;
 ---
 
 <article
-  class="group relative overflow-hidden rounded-2xl border border-border bg-bg-elevated p-6 transition-colors hover:border-white/20 hover:bg-bg-muted"
+  class="group relative overflow-hidden rounded-2xl border border-border bg-bg-elevated p-6 transition duration-300 ease-fluid hover:-translate-y-1 hover:border-accent/30 hover:shadow-xl motion-reduce:transition-none motion-reduce:hover:translate-y-0"
 >
   <div
-    class="pointer-events-none absolute -top-24 -right-24 size-48 rounded-full bg-accent-soft blur-3xl transition-opacity group-hover:opacity-100"
+    class="pointer-events-none absolute -top-24 -right-24 size-48 rounded-full bg-accent-soft opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-100 motion-reduce:transition-none"
     aria-hidden="true"
   >
   </div>
@@ -28,7 +28,9 @@ const { project } = Astro.props;
       }
     </div>
 
-    <h3 class="mt-6 text-xl font-semibold tracking-tight text-fg">
+    <h3
+      class="mt-6 text-xl font-semibold tracking-tight text-fg transition-colors group-hover:text-accent"
+    >
       {project.title}
     </h3>
 
@@ -43,7 +45,7 @@ const { project } = Astro.props;
             href={project.href}
             target="_blank"
             rel="noreferrer"
-            class="text-fg transition-colors hover:text-accent"
+            class="text-fg focus-ring transition-colors hover:text-accent"
           >
             View Project
             <span aria-hidden="true"> ↗</span>
@@ -57,7 +59,7 @@ const { project } = Astro.props;
             href={project.repository}
             target="_blank"
             rel="noreferrer"
-            class="text-fg-subtle transition-colors hover:text-fg"
+            class="text-fg-subtle focus-ring transition-colors hover:text-fg"
           >
             Source
             <span aria-hidden="true"> ↗</span>

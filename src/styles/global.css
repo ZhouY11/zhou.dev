@@ -18,6 +18,61 @@
   --color-accent-soft: var(--site-accent-soft);
 }
 
+@theme {
+  --ease-fluid: cubic-bezier(0.3, 0, 0, 1);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+
+  --animate-ambient-drift: ambient-drift 14s ease-in-out infinite alternate;
+  --animate-ambient-drift-slow: ambient-drift-slow 18s ease-in-out infinite alternate;
+
+  --animate-hero-enter: hero-enter 700ms var(--ease-fluid) both;
+
+  @keyframes ambient-drift {
+    from {
+      translate: -4% -2%;
+      scale: 1;
+    }
+
+    to {
+      translate: 5% 4%;
+      scale: 1.08;
+    }
+  }
+
+  @keyframes ambient-drift-slow {
+    from {
+      translate: 3% -3%;
+      scale: 1;
+    }
+
+    to {
+      translate: -5% 5%;
+      scale: 1.1;
+    }
+  }
+
+  @keyframes hero-enter {
+    from {
+      opacity: 0;
+      translate: 0 12px;
+    }
+
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--site-bg),
+      0 0 0 4px var(--site-accent);
+  }
+}
+
 :root {
   --site-bg: #09090b;
   --site-bg-elevated: #111113;
@@ -85,4 +140,10 @@ body {
 ::selection {
   background: var(--site-accent-soft);
   color: var(--site-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
