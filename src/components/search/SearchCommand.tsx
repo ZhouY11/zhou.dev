@@ -61,7 +61,7 @@ export default function SearchCommand({ posts }: SearchCommandProps) {
   return (
     <>
       <button
-        className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-fg-muted focus-ring transition-colors hover:border-white/20 hover:text-fg"
+        className="flex items-center gap-2 rounded-lg border focus-ring border-border px-3 py-2 text-sm text-fg-muted transition-colors hover:border-white/20 hover:text-fg"
         type="button"
         aria-haspopup="dialog"
         onClick={openDialog}
@@ -86,7 +86,7 @@ export default function SearchCommand({ posts }: SearchCommandProps) {
               搜索文章
             </h2>
             <button
-              className="rounded-md px-2 py-1 text-sm text-fg-subtle focus-ring transition-colors hover:bg-bg-muted hover:text-fg"
+              className="rounded-md focus-ring px-2 py-1 text-sm text-fg-subtle transition-colors hover:bg-bg-muted hover:text-fg"
               type="button"
               aria-label="关闭搜索"
               onClick={closeDialog}
@@ -114,7 +114,7 @@ export default function SearchCommand({ posts }: SearchCommandProps) {
               {visiblePosts.map((post) => (
                 <li key={post.href}>
                   <a
-                    className="block rounded-xl px-4 py-3 focus-ring transition-colors hover:bg-bg-muted"
+                    className="block rounded-xl focus-ring px-4 py-3 transition-colors hover:bg-bg-muted"
                     href={post.href}
                     onClick={closeDialog}
                   >

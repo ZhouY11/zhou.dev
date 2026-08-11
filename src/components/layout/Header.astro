@@ -19,7 +19,7 @@ const isActive = (href: string) => {
     <div class="flex w-full items-center justify-between gap-8 md:justify-normal">
       <a
         href="/"
-        class="text-lg font-semibold tracking-tight text-fg focus-ring"
+        class="focus-ring text-lg font-semibold tracking-tight text-fg"
         aria-label="返回首页"
       >
         {siteConfig.name}<span class="text-accent">.</span>
@@ -39,7 +39,7 @@ const isActive = (href: string) => {
             href={item.href}
             aria-current={isActive(item.href) ? 'page' : undefined}
             class:list={[
-              'rounded-lg px-3 py-2 text-sm text-fg-muted focus-ring transition-colors duration-200 hover:bg-bg-muted hover:text-fg',
+              'rounded-lg focus-ring px-3 py-2 text-sm text-fg-muted transition-colors duration-200 hover:bg-bg-muted hover:text-fg',
               isActive(item.href) ? 'bg-bg-muted text-fg' : 'text-fg-muted hover:text-fg',
             ]}
           >
@@ -54,7 +54,7 @@ const isActive = (href: string) => {
         href={siteConfig.links.github}
         target="_blank"
         rel="noreferrer"
-        class="rounded-lg px-3 py-2 text-sm text-fg-muted focus-ring transition-colors duration-200 hover:bg-bg-muted hover:text-fg"
+        class="rounded-lg focus-ring px-3 py-2 text-sm text-fg-muted transition-colors duration-200 hover:bg-bg-muted hover:text-fg"
       >
         GitHub
       </a>

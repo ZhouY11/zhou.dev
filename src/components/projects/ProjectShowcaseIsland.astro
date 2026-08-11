@@ -1,0 +1,13 @@
+---
+import type { Project } from '../../data/projects';
+
+import ProjectShowcase from './ProjectShowcase';
+
+interface Props {
+  projects: Project[];
+}
+
+const { projects } = Astro.props;
+---
+
+<ProjectShowcase client:visible={{ rootMargin: '200px' }} projects={projects} />

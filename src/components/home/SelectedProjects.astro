@@ -1,7 +1,7 @@
 ---
 import type { Project } from '../../data/projects';
 
-import ProjectCard from '../projects/ProjectCard.astro';
+import ProjectShowcaseIsland from '../projects/ProjectShowcaseIsland.astro';
 import SectionHeading from './SectionHeading.astro';
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 const { projects } = Astro.props;
 ---
 
-<section id="projects" class="border-y border-white/5 bg-white/1">
+<section id="projects" class="border-y border-border bg-bg-elevated">
   <div class="mx-auto max-w-6xl px-6 py-24">
     <SectionHeading
       eyebrow="Projects"
@@ -19,8 +19,8 @@ const { projects } = Astro.props;
       description="一些关于前端工程、开发工具和 AI 应用的长期实践。"
     />
 
-    <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {projects.map((project) => <ProjectCard project={project} />)}
+    <div class="mt-12">
+      <ProjectShowcaseIsland projects={projects} />
     </div>
   </div>
 </section>
