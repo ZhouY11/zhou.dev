@@ -1,16 +1,18 @@
-<section class="relative overflow-hidden">
-  <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+<section class="relative isolate overflow-hidden">
+  <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
     <div
-      class="absolute -top-50 left-1/2 h-125 w-175 -translate-x-1/2 rounded-full bg-accent-soft blur-[120px]"
+      class="absolute -top-50 left-1/2 h-125 w-175 -translate-x-1/2 animate-ambient-drift rounded-full bg-accent-soft blur-3xl motion-reduce:animate-none"
     >
     </div>
 
-    <div class="absolute top-45 -right-50 h-100 w-100 rounded-full bg-cyan-500/5 blur-[100px]">
+    <div
+      class="absolute top-45 -right-50 size-100 animate-ambient-drift-slow rounded-full bg-accent-soft opacity-60 blur-3xl motion-reduce:animate-none"
+    >
     </div>
   </div>
 
   <div class="mx-auto flex min-h-[calc(100svh-4rem)] max-w-6xl items-center px-6 py-24">
-    <div class="max-w-4xl">
+    <div class="max-w-4xl animate-hero-enter motion-reduce:animate-none">
       <div
         class="mb-7 inline-flex items-center gap-2 rounded-full border border-border bg-bg-muted px-3 py-1.5 text-xs text-fg-muted"
       >
@@ -38,7 +40,7 @@
       <div class="mt-10 flex flex-wrap gap-3">
         <a
           href="/blog"
-          class="rounded-full bg-indigo-500 px-6 py-3 text-sm font-medium text-white transition hover:opacity-85"
+          class="rounded-full bg-indigo-500 px-6 py-3 text-sm font-medium text-white focus-ring transition hover:opacity-85"
         >
           阅读文章
           <span aria-hidden="true"> →</span>
@@ -46,7 +48,7 @@
 
         <a
           href="#projects"
-          class="rounded-full border border-border bg-bg-elevated px-6 py-3 text-sm font-medium text-fg transition hover:bg-bg-muted"
+          class="rounded-full border border-border bg-bg-elevated px-6 py-3 text-sm font-medium text-fg focus-ring transition hover:bg-bg-muted"
         >
           查看项目
         </a>
