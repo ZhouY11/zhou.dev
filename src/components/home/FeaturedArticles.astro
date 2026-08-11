@@ -21,7 +21,7 @@ const { posts } = Astro.props;
 
     <a
       href="/blog"
-      class="hidden text-sm text-fg-muted focus-ring transition-colors hover:text-fg sm:block"
+      class="hidden focus-ring text-sm text-fg-muted transition-colors hover:text-fg sm:block"
     >
       查看全部
       <span aria-hidden="true"> →</span>
@@ -35,7 +35,7 @@ const { posts } = Astro.props;
           <article class="h-full">
             <a
               href={`/blog/${post.id}`}
-              class="group flex h-full flex-col rounded-2xl border border-border bg-bg-elevated p-6 focus-ring transition duration-300 ease-fluid hover:-translate-y-0.5 hover:border-accent/30 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              class="group flex h-full flex-col rounded-2xl border focus-ring border-border bg-bg-elevated p-6 transition duration-300 ease-fluid hover:-translate-y-0.5 hover:border-accent/30 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
               <div class="flex flex-wrap gap-2">
                 {post.data.tags.slice(0, 3).map((tag) => (
@@ -66,7 +66,7 @@ const { posts } = Astro.props;
 
   <a
     href="/blog"
-    class="mt-8 inline-block text-sm text-fg-muted focus-ring transition-colors hover:text-fg sm:hidden"
+    class="mt-8 inline-block focus-ring text-sm text-fg-muted transition-colors hover:text-fg sm:hidden"
   >
     查看全部
     <span aria-hidden="true"> →</span>
