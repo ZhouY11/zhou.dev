@@ -19,7 +19,7 @@ const canonicalURL = Astro.site ? new URL(Astro.url.pathname, Astro.site) : unde
 ---
 
 <!doctype html>
-<html lang={siteConfig.locale}>
+<html lang={siteConfig.locale} data-theme="dark" data-theme-preference="system">
   <head>
     <meta charset="UTF-8" />
 
@@ -31,7 +31,7 @@ const canonicalURL = Astro.site ? new URL(Astro.url.pathname, Astro.site) : unde
 
     <meta name="theme-color" content="#09090b" />
 
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light dark" />
 
     <title>{pageTitle}</title>
 
@@ -52,6 +52,35 @@ const canonicalURL = Astro.site ? new URL(Astro.url.pathname, Astro.site) : unde
     <meta name="twitter:card" content="summary" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+
+        let preference = 'system';
+
+        try {
+          const storedTheme = localStorage.getItem('theme');
+
+          if (storedTheme === 'light' || storedTheme === 'dark') {
+            preference = storedTheme;
+          }
+        } catch {
+          /* empty */
+        }
+
+        const resolvedTheme =
+          preference === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : preference;
+
+        root.dataset.theme = resolvedTheme;
+        root.dataset.themePreference = preference;
+        root.style.colorScheme = resolvedTheme;
+      })();
+    </script>
   </head>
 
   <body>
