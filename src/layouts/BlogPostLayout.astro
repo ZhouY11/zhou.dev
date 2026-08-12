@@ -17,7 +17,7 @@ const { post, olderPost, newerPost } = Astro.props;
   <article class="mx-auto max-w-3xl px-6 py-24">
     <header class="mb-14">
       <div class="mb-5 flex flex-wrap gap-2">
-        {post.data.tags.map((tag) => <span class="text-sm font-medium text-accent">#{tag}</span>)}
+        {post.data.tags.map((tag) => <span class="text-sm font-medium text-brand">#{tag}</span>)}
       </div>
 
       <h1 class="text-4xl leading-tight font-semibold tracking-tight text-fg sm:text-5xl">
@@ -44,7 +44,7 @@ const { post, olderPost, newerPost } = Astro.props;
     </header>
 
     <div
-      class="prose max-w-none prose-zinc dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-accent prose-pre:border prose-pre:border-border"
+      class="prose max-w-none prose-zinc dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-brand prose-pre:border prose-pre:border-border"
     >
       <slot />
     </div>

@@ -16,11 +16,11 @@ const { post } = Astro.props;
     class="group block rounded-2xl border border-border p-6 transition-colors hover:border-border hover:bg-bg-elevated"
   >
     <div class="mb-4 flex flex-wrap gap-2">
-      {post.data.tags.map((tag) => <span class="text-xs font-medium text-accent">#{tag}</span>)}
+      {post.data.tags.map((tag) => <span class="text-xs font-medium text-brand">#{tag}</span>)}
     </div>
 
     <h2
-      class="text-xl font-semibold tracking-tight text-fg transition-colors group-hover:text-accent"
+      class="text-xl font-semibold tracking-tight text-fg transition-colors group-hover:text-brand"
     >
       {post.data.title}
     </h2>
