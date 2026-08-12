@@ -1946,3 +1946,163 @@ meta description
 这篇文章还远远没有结束。
 
 我的博客继续成长，它也会继续成长。
+
+---
+
+# Sitemap：主动告诉搜索引擎网站有哪些重要页面
+
+做到博客准备上线时，我第一次真正实现了 sitemap。
+
+以前看到：
+
+\`\`\`text
+sitemap.xml
+\`\`\`
+
+我会简单理解成：
+
+> 做 SEO 的网站都要有这个文件。
+
+现在我更愿意从搜索引擎发现页面的过程理解它。
+
+搜索引擎可以通过链接发现页面：
+
+\`\`\`text
+Home
+↓
+Blog
+↓
+Article
+\`\`\`
+
+但对于一个刚上线的网站，它可能：
+
+- 几乎没有外部链接
+- 文章数量会持续增加
+- 搜索引擎还不了解网站结构
+
+Sitemap 相当于网站主动提供：
+
+\`\`\`text
+这些 URL 是我认为重要的页面。
+\`\`\`
+
+例如：
+
+\`\`\`text
+/
+/blog
+/blog/astro
+/blog/seo
+\`\`\`
+
+但这里需要纠正一个很重要的误区：
+
+\`\`\`text
+进入 Sitemap
+≠
+一定被 Google 抓取
+
+被抓取
+≠
+一定被 Google 索引
+
+被索引
+≠
+一定获得排名
+\`\`\`
+
+因此 Sitemap 首先解决的是：
+
+\`\`\`text
+URL Discovery
+\`\`\`
+
+而不是：
+
+\`\`\`text
+Ranking
+\`\`\`
+
+我的 Astro 博客使用 `@astrojs/sitemap` 根据最终生成的页面自动创建 Sitemap。
+
+这意味着 sitemap 不再单独维护文章列表：
+
+\`\`\`text
+Content Collection
+↓
+Published Routes
+↓
+Astro Build
+↓
+Sitemap
+\`\`\`
+
+没有生成路由的 draft 文章自然不会进入 sitemap。
+
+这也减少了一份需要手动维护的 SEO 状态。
+
+# robots.txt：告诉爬虫哪些路径可以抓取
+
+准备上线时，我也第一次真正创建了：
+
+\`\`\`text
+/robots.txt
+\`\`\`
+
+目前博客的策略非常简单：
+
+\`\`\`text
+User-agent: *
+Allow: /
+\`\`\`
+
+意思是允许搜索引擎爬虫抓取整个公开网站。
+
+当生产域名确定后，还会增加：
+
+\`\`\`text
+Sitemap: https://example.com/sitemap-index.xml
+\`\`\`
+
+让访问 robots.txt 的 crawler 同时知道 sitemap 的位置。
+
+这里我也进一步理解了：
+
+\`\`\`text
+robots.txt
+→ Crawl Control
+
+noindex
+→ Index Control
+\`\`\`
+
+两者不是同一个东西。
+
+甚至如果 robots.txt 完全禁止搜索引擎抓取一个页面：
+
+\`\`\`text
+Disallow: /page
+\`\`\`
+
+搜索引擎可能根本读取不到这个页面内部的：
+
+\`\`\`html
+<meta name="robots" content="noindex">
+\`\`\`
+
+因此：
+
+> 如果希望通过 `noindex` 阻止页面进入搜索结果，通常仍然需要允许 crawler 访问这个页面，从而让它真正读取到 `noindex`。
+
+这让我开始真正区分：
+
+\`\`\`text
+Discovery
+Crawling
+Rendering
+Indexing
+Ranking
+\`\`\`
+
+这些以前经常被我统称成“Google 能不能搜到”的不同阶段。
