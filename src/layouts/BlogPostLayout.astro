@@ -59,7 +59,7 @@ const { post, olderPost, newerPost } = Astro.props;
             {newerPost && (
               <a
                 href={`/blog/${newerPost.id}`}
-                class="group block rounded-xl border border-border p-4 hover:border-white/20"
+                class="group block rounded-xl border focus-ring border-border p-4 hover:border-white/20"
               >
                 <span class="text-xs text-fg-subtle">较新的文章</span>
 
@@ -74,7 +74,7 @@ const { post, olderPost, newerPost } = Astro.props;
             {olderPost && (
               <a
                 href={`/blog/${olderPost.id}`}
-                class="group block rounded-xl border border-border p-4 text-right hover:border-white/20"
+                class="group block rounded-xl border focus-ring border-border p-4 text-right hover:border-white/20"
               >
                 <span class="text-xs text-fg-subtle">较早的文章</span>
 

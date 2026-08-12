@@ -1,64 +1,88 @@
-<section class="relative isolate overflow-hidden">
+<section class="relative isolate overflow-hidden" aria-labelledby="hero-title">
+  <!-- Ambient background -->
   <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
     <div
-      class="absolute -top-50 left-1/2 h-125 w-175 -translate-x-1/2 animate-ambient-drift rounded-full bg-brand-soft blur-3xl motion-reduce:animate-none"
+      class="absolute -top-24 left-1/2 size-80 -translate-x-1/2 rounded-full bg-brand-soft blur-3xl motion-safe:animate-ambient-drift motion-reduce:animate-none sm:-top-32 sm:size-[32rem] lg:left-[62%]"
     >
     </div>
 
     <div
-      class="absolute top-45 -right-50 size-100 animate-ambient-drift-slow rounded-full bg-brand-soft opacity-60 blur-3xl motion-reduce:animate-none"
+      class="absolute top-1/2 -left-32 size-72 rounded-full bg-brand-soft/60 blur-3xl motion-safe:animate-ambient-drift-slow motion-reduce:animate-none sm:size-96"
     >
     </div>
   </div>
 
-  <div class="mx-auto flex min-h-[calc(100svh-4rem)] max-w-6xl items-center px-6 py-24">
-    <div class="max-w-4xl animate-hero-enter motion-reduce:animate-none">
-      <div
-        class="mb-7 inline-flex items-center gap-2 rounded-full border border-border bg-bg-muted px-3 py-1.5 text-xs text-fg-muted"
-      >
-        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true"> </span>
-
-        Frontend Engineer · AI Builder
+  <div
+    class="mx-auto flex min-h-[72svh] w-full max-w-6xl items-center px-6 py-24 sm:px-8 sm:py-32 lg:px-10 lg:py-36"
+  >
+    <div class="max-w-5xl motion-safe:animate-hero-enter motion-reduce:animate-none">
+      <!-- Eyebrow -->
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span
+          class="inline-flex items-center gap-2 rounded-full border border-border bg-bg-elevated/70 px-3 py-1.5 text-xs font-medium tracking-wide text-fg-muted backdrop-blur"
+        >
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
+          Frontend Engineer · AI Builder
+        </span>
       </div>
 
+      <!-- Main title -->
       <h1
-        class="max-w-4xl text-5xl leading-[1.05] font-semibold tracking-[-0.04em] text-fg sm:text-6xl lg:text-7xl"
+        id="hero-title"
+        class="mt-7 max-w-5xl text-4xl leading-[1.08] font-semibold tracking-[-0.035em] text-fg sm:text-5xl lg:text-7xl lg:leading-[1.04]"
       >
         构建可靠的前端系统，
-
         <span
           class="bg-linear-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent"
+          >探索 AI 应用的下一种形态</span
         >
-          探索 AI 应用的下一种形态。
-        </span>
       </h1>
 
-      <p class="mt-8 max-w-2xl text-base leading-8 text-fg-muted sm:text-lg">
-        在这里记录前端架构、工程化、性能优化、微前端以及 AI Agent 开发中的实践与思考。
+      <!-- Introduction -->
+      <p class="mt-7 max-w-2xl text-base leading-8 text-fg-muted sm:text-lg sm:leading-8">
+        你好，我是 Zhou。长期专注前端架构、工程化与性能优化， 目前也在持续探索 AI Agent 的工程实践。
       </p>
 
-      <div class="mt-10 flex flex-wrap gap-3">
+      <p class="mt-2 max-w-2xl text-sm leading-7 text-fg-subtle sm:text-base">
+        这里记录真实项目中的技术决策、问题拆解与实现过程。
+      </p>
+
+      <!-- CTA -->
+      <div class="mt-9 flex flex-wrap items-center gap-3 sm:gap-4">
         <a
           href="/blog"
-          class="rounded-full focus-ring bg-indigo-500 px-6 py-3 text-sm font-medium text-white transition hover:opacity-85"
+          class="inline-flex min-h-11 items-center justify-center rounded-full focus-ring bg-fg px-5 py-2.5 text-sm font-medium text-bg transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
         >
-          阅读文章
-          <span aria-hidden="true"> →</span>
+          阅读博客
+
+          <span class="ml-2" aria-hidden="true"> → </span>
         </a>
 
         <a
           href="#projects"
-          class="rounded-full border focus-ring border-border bg-bg-elevated px-6 py-3 text-sm font-medium text-fg transition hover:bg-bg-muted"
+          class="inline-flex min-h-11 items-center justify-center rounded-full border focus-ring border-border bg-bg-elevated/60 px-5 py-2.5 text-sm font-medium text-fg-muted backdrop-blur transition-[color,background-color,border-color,transform] hover:-translate-y-0.5 hover:border-fg-subtle hover:bg-bg-elevated hover:text-fg motion-reduce:transform-none"
         >
           查看项目
         </a>
       </div>
 
-      <div class="mt-14 flex flex-wrap gap-x-6 gap-y-2 text-sm text-fg-subtle">
-        <span>Vue</span>
-        <span>TypeScript</span>
-        <span>Astro</span>
+      <!-- Topics -->
+      <div
+        class="mt-12 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-fg-subtle"
+        aria-label="关注的技术方向"
+      >
         <span>Frontend Architecture</span>
+
+        <span aria-hidden="true">·</span>
+
+        <span>Engineering</span>
+
+        <span aria-hidden="true">·</span>
+
+        <span>Performance</span>
+
+        <span aria-hidden="true">·</span>
+
         <span>AI Agent</span>
       </div>
     </div>

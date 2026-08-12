@@ -1,25 +1,54 @@
 ---
-import { siteConfig } from '../../config/site';
+import { siteConfig } from '@/config/site';
 
-const year = new Date().getFullYear();
+const currentYear = new Date().getFullYear();
 ---
 
-<footer class="border-t border-white/5">
-  <div
-    class="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-fg-subtle sm:flex-row sm:items-center sm:justify-between"
-  >
-    <p>
-      © {year}
-      {siteConfig.name}. Built with Astro.
-    </p>
+<footer class="border-t border-border">
+  <div class="mx-auto w-full max-w-6xl px-6 py-10 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid gap-8 sm:grid-cols-[1fr_auto] sm:items-end">
+      <!-- Brand -->
+      <div>
+        <a
+          href="/"
+          class="inline-flex rounded-md focus-ring text-lg font-semibold tracking-tight text-fg"
+        >
+          Zhou
+        </a>
 
-    <a
-      href={siteConfig.links.github}
-      target="_blank"
-      rel="noreferrer"
-      class="focus-ring transition-colors hover:text-fg-muted"
+        <p class="mt-3 max-w-md text-sm leading-6 text-fg-muted">
+          记录前端工程、架构实践与持续学习。
+        </p>
+      </div>
+
+      <!-- Navigation -->
+      <nav aria-label="页脚导航" class="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm">
+        <a href="/blog" class="rounded-md focus-ring text-fg-muted transition-colors hover:text-fg">
+          博客
+        </a>
+
+        <a
+          href={siteConfig.links.github}
+          target="_blank"
+          rel="noreferrer"
+          class="inline-flex items-center rounded-md focus-ring text-fg-muted transition-colors hover:text-fg"
+        >
+          GitHub
+
+          <span class="ml-1" aria-hidden="true"> ↗ </span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Bottom -->
+    <div
+      class="mt-10 flex flex-col gap-3 border-t border-border pt-6 text-xs text-fg-subtle sm:flex-row sm:items-center sm:justify-between"
     >
-      GitHub
-    </a>
+      <p>
+        © {currentYear} Zhou
+      </p>
+
+      <p>保持好奇，持续构建。</p>
+    </div>
   </div>
 </footer>
