@@ -48,7 +48,7 @@ export default function ProjectShowcase({ projects }: Props) {
             className="relative isolate overflow-hidden rounded-2xl border border-border bg-bg-elevated p-6 sm:p-8"
           >
             <div
-              className="pointer-events-none absolute -top-32 -right-32 -z-10 size-72 rounded-full bg-accent-soft blur-3xl"
+              className="pointer-events-none absolute -top-32 -right-32 -z-10 size-72 rounded-full bg-brand-soft blur-3xl"
               aria-hidden="true"
             />
 
@@ -91,7 +91,7 @@ export default function ProjectShowcase({ projects }: Props) {
                   <li key={highlight} className="flex gap-3 text-sm leading-6 text-fg-muted">
                     <span
                       aria-hidden="true"
-                      className="mt-2 size-1.5 shrink-0 rounded-full bg-accent"
+                      className="mt-2 size-1.5 shrink-0 rounded-full bg-brand"
                     />
 
                     <span>{highlight}</span>
@@ -107,7 +107,7 @@ export default function ProjectShowcase({ projects }: Props) {
                     href={project.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-lg focus-ring text-sm font-medium text-fg transition-colors hover:text-accent"
+                    className="rounded-lg focus-ring text-sm font-medium text-fg transition-colors hover:text-brand"
                   >
                     View Project ↗
                   </a>

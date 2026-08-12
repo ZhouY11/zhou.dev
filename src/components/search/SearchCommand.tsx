@@ -125,7 +125,7 @@ export default function SearchCommand({ posts }: SearchCommandProps) {
                     {post.tags.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {post.tags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="text-xs text-accent">
+                          <span key={tag} className="text-xs text-brand">
                             #{tag}
                           </span>
                         ))}
