@@ -13,7 +13,7 @@ const { post } = Astro.props;
 <article>
   <a
     href={`/blog/${post.id}`}
-    class="group block rounded-2xl border border-border p-6 transition-colors hover:border-border hover:bg-bg-elevated"
+    class="group block rounded-2xl border focus-ring border-border p-6 transition-colors hover:border-border hover:bg-bg-elevated"
   >
     <div class="mb-4 flex flex-wrap gap-2">
       {post.data.tags.map((tag) => <span class="text-xs font-medium text-brand">#{tag}</span>)}
