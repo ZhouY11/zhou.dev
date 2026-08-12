@@ -1,0 +1,58 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="页面不存在" description="你访问的页面不存在，或者已经被移动。">
+  <section
+    class="relative isolate flex min-h-[calc(100svh-12rem)] items-center overflow-hidden"
+    aria-labelledby="not-found-title"
+  >
+    <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+      <div
+        class="absolute top-1/3 left-1/2 size-100 -translate-x-1/2 rounded-full bg-brand-soft blur-3xl"
+      >
+      </div>
+    </div>
+
+    <div class="mx-auto w-full max-w-4xl px-6 py-24 sm:px-8 lg:px-10">
+      <p class="text-sm font-medium tracking-[0.2em] text-fg-subtle uppercase">Error 404</p>
+
+      <h1
+        id="not-found-title"
+        class="mt-6 max-w-3xl text-5xl font-semibold tracking-tight text-fg sm:text-6xl lg:text-7xl"
+      >
+        页面不存在
+      </h1>
+
+      <p class="mt-6 max-w-xl text-base leading-7 text-fg-muted sm:text-lg">
+        你访问的页面不存在，或者已经被移动。 可以返回首页，或者继续浏览博客内容。
+      </p>
+
+      <div class="mt-10 flex flex-wrap items-center gap-5">
+        <a
+          href="/"
+          class="inline-flex items-center rounded-full focus-ring bg-fg px-5 py-2.5 text-sm font-medium text-bg transition-transform hover:-translate-y-0.5"
+        >
+          返回首页
+        </a>
+
+        <a
+          href="/blog"
+          class="rounded-full focus-ring px-5 py-2.5 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
+        >
+          浏览博客
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <div
+        aria-hidden="true"
+        class="mt-20 flex items-center gap-4 text-xs tracking-[0.3em] text-fg-subtle"
+      >
+        <span>04</span>
+        <span class="h-px w-20 bg-border"></span>
+        <span>04</span>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
