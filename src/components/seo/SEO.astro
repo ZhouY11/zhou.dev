@@ -1,0 +1,41 @@
+---
+import { siteConfig } from '@/config/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: URL | string;
+  noindex?: boolean;
+  type?: 'website' | 'article';
+}
+
+const {
+  title,
+  description = siteConfig.description,
+  canonical,
+  noindex = false,
+  type = 'website',
+} = Astro.props;
+
+const pageTitle = title ? `${title} | ${siteConfig.name}` : siteConfig.title;
+---
+
+<title>{pageTitle}</title>
+
+<meta name="description" content={description} />
+
+{canonical && <link rel="canonical" href={canonical} />}
+
+{noindex && <meta name="robots" content="noindex,nofollow" />}
+
+<meta property="og:title" content={pageTitle} />
+
+<meta property="og:description" content={description} />
+
+<meta property="og:type" content={type} />
+
+{canonical && <meta property="og:url" content={canonical} />}
+
+<meta property="og:locale" content={siteConfig.locale.replace('-', '_')} />
+
+<meta name="twitter:card" content="summary" />
