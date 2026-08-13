@@ -8,6 +8,8 @@ import { visualizer } from 'rollup-plugin-visualizer';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://zhou-dev.vercel.app',
+
   vite: {
     plugins: [
       tailwindcss(),
