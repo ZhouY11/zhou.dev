@@ -18,6 +18,8 @@ const {
 } = Astro.props;
 
 const pageTitle = title ? `${title} | ${siteConfig.name}` : siteConfig.title;
+
+const rssURL = Astro.site ? new URL('/rss.xml', Astro.site) : undefined;
 ---
 
 <title>{pageTitle}</title>
@@ -25,6 +27,17 @@ const pageTitle = title ? `${title} | ${siteConfig.name}` : siteConfig.title;
 <meta name="description" content={description} />
 
 {canonical && <link rel="canonical" href={canonical} />}
+
+{
+  rssURL && (
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={`${siteConfig.name} RSS Feed`}
+      href={rssURL}
+    />
+  )
+}
 
 {noindex && <meta name="robots" content="noindex,nofollow" />}
 
