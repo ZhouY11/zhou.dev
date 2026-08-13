@@ -2,7 +2,7 @@
 title: 从 0 开始理解 SEO：我在 Astro 博客中做了什么
 description: 从一个前端工程师的视角，通过 Astro 个人技术博客的开发过程逐步理解 SEO，目前记录 Title、Description、Canonical、noindex、静态 HTML 与社交分享元数据等基础实践。
 publishedAt: 2026-08-11
-updatedAt: 2026-08-11
+updatedAt: 2026-08-13
 tags:
   - SEO
   - Astro
@@ -1955,9 +1955,9 @@ meta description
 
 以前看到：
 
-\`\`\`text
+```text
 sitemap.xml
-\`\`\`
+```
 
 我会简单理解成：
 
@@ -1967,13 +1967,13 @@ sitemap.xml
 
 搜索引擎可以通过链接发现页面：
 
-\`\`\`text
+```text
 Home
 ↓
 Blog
 ↓
 Article
-\`\`\`
+```
 
 但对于一个刚上线的网站，它可能：
 
@@ -1983,22 +1983,22 @@ Article
 
 Sitemap 相当于网站主动提供：
 
-\`\`\`text
+```text
 这些 URL 是我认为重要的页面。
-\`\`\`
+```
 
 例如：
 
-\`\`\`text
+```text
 /
 /blog
 /blog/astro
 /blog/seo
-\`\`\`
+```
 
 但这里需要纠正一个很重要的误区：
 
-\`\`\`text
+```text
 进入 Sitemap
 ≠
 一定被 Google 抓取
@@ -2010,25 +2010,25 @@ Sitemap 相当于网站主动提供：
 被索引
 ≠
 一定获得排名
-\`\`\`
+```
 
 因此 Sitemap 首先解决的是：
 
-\`\`\`text
+```text
 URL Discovery
-\`\`\`
+```
 
 而不是：
 
-\`\`\`text
+```text
 Ranking
-\`\`\`
+```
 
 我的 Astro 博客使用 `@astrojs/sitemap` 根据最终生成的页面自动创建 Sitemap。
 
 这意味着 sitemap 不再单独维护文章列表：
 
-\`\`\`text
+```text
 Content Collection
 ↓
 Published Routes
@@ -2036,7 +2036,7 @@ Published Routes
 Astro Build
 ↓
 Sitemap
-\`\`\`
+```
 
 没有生成路由的 draft 文章自然不会进入 sitemap。
 
@@ -2046,50 +2046,50 @@ Sitemap
 
 准备上线时，我也第一次真正创建了：
 
-\`\`\`text
+```text
 /robots.txt
-\`\`\`
+```
 
 目前博客的策略非常简单：
 
-\`\`\`text
+```text
 User-agent: *
 Allow: /
-\`\`\`
+```
 
 意思是允许搜索引擎爬虫抓取整个公开网站。
 
 当生产域名确定后，还会增加：
 
-\`\`\`text
+```text
 Sitemap: https://example.com/sitemap-index.xml
-\`\`\`
+```
 
 让访问 robots.txt 的 crawler 同时知道 sitemap 的位置。
 
 这里我也进一步理解了：
 
-\`\`\`text
+```text
 robots.txt
 → Crawl Control
 
 noindex
 → Index Control
-\`\`\`
+```
 
 两者不是同一个东西。
 
 甚至如果 robots.txt 完全禁止搜索引擎抓取一个页面：
 
-\`\`\`text
+```text
 Disallow: /page
-\`\`\`
+```
 
 搜索引擎可能根本读取不到这个页面内部的：
 
-\`\`\`html
-<meta name="robots" content="noindex">
-\`\`\`
+```html
+<meta name="robots" content="noindex" />
+```
 
 因此：
 
@@ -2097,17 +2097,17 @@ Disallow: /page
 
 这让我开始真正区分：
 
-\`\`\`text
+```text
 Discovery
 Crawling
 Rendering
 Indexing
 Ranking
-\`\`\`
+```
 
 这些以前经常被我统称成“Google 能不能搜到”的不同阶段。
 
-## Core Web Vitals：性能为什么也会进入 SEO 讨论
+# Core Web Vitals：性能为什么也会进入 SEO 讨论
 
 准备上线博客时，我第一次系统检查了 Core Web Vitals。
 
@@ -2131,4 +2131,176 @@ Core Web Vitals 更本质上是在衡量真实用户体验，Google 的搜索系
 LCP
 CLS
 TBT
+```
+
+其中 Lighthouse 无法真正测量 INP，因为 INP 依赖真实用户产生的交互。
+
+因此开发阶段可以使用 TBT 帮助发现主线程阻塞问题：
+
+```text
+Lab
+→ LCP / CLS / TBT
+
+Production
+→ LCP / CLS / INP
+```
+
+这也让我开始区分：
+
+```text
+Lighthouse
+→ 开发阶段诊断工具
+
+Core Web Vitals field data
+→ 真实用户体验数据
+```
+
+所以性能优化的目标不应该是：
+
+```text
+Lighthouse 100
+```
+
+而应该是：
+
+```text
+页面快速出现
++
+交互及时响应
++
+布局保持稳定
+```
+
+# Search Console：上线以后 SEO 才真正开始
+
+博客正式上线之后，我第一次把网站添加到了 Google Search Console。
+
+这让我开始意识到，前面做的：
+
+- title
+- canonical
+- sitemap
+- robots.txt
+
+都只是网站提供给搜索引擎的信号。
+
+真正的过程是：
+
+```text
+网站上线
+    ↓
+Discovery
+    ↓
+Crawling
+    ↓
+Rendering
+    ↓
+Indexing
+    ↓
+Search Results
+```
+
+Sitemap Success 不代表已经被索引
+
+Search Console 中 Sitemap 显示 `Success`，只能说明 Google 成功读取了 Sitemap。
+
+它不代表：
+
+```text
+Sitemap Success
+=
+Indexed
+```
+
+更不代表：
+
+```text
+Indexed
+=
+获得排名
+```
+
+## URL Inspection
+
+通过 URL Inspection，我可以分别观察：
+
+```text
+Crawl allowed?
+Indexing allowed?
+User-declared canonical
+Google-selected canonical
+```
+
+其中我第一次真正理解：
+
+```text
+User-declared canonical
+```
+
+只是网站告诉 Google：
+
+> 我认为这个 URL 是规范版本。
+
+而：
+
+```text
+Google-selected canonical
+```
+
+才是 Google 在完成抓取和索引之后实际选择的规范 URL。
+
+因此：
+
+```text
+Canonical
+=
+Strong signal
+
+而不是
+
+Canonical
+=
+Command
+```
+
+## Live Test 与 Indexed Version
+
+Search Console 默认展示的是 Google 当前 Index 中保存的页面信息。
+
+而
+
+```text
+Test Live URL
+```
+
+测试的是网站当前线上版本。
+
+因此刚修复一个 SEO 问题时：
+
+```text
+Indexed Version
+可能还是旧的
+
+Live URL
+已经是新的
+```
+
+需要等待 Google 再次抓取以后，两者才会逐渐一致。
+
+这让我第一次真正把 SEO 从：
+
+```text
+配置 meta 标签
+```
+
+理解成：
+
+```text
+网站
+↓
+向搜索引擎提供信号
+↓
+搜索引擎抓取
+↓
+搜索引擎自行判断
 ```
