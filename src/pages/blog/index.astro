@@ -7,27 +7,33 @@ const posts = await getPublishedPosts();
 ---
 
 <BaseLayout title="Blog" description="记录前端架构、工程化、性能优化与 AI Agent 开发实践。">
-  <section class="mx-auto max-w-4xl px-6 py-24">
-    <header class="mb-14">
-      <p class="mb-3 text-sm font-medium tracking-widest text-brand uppercase">Blog</p>
+  <div class="mx-auto max-w-4xl px-6 py-24">
+    <section aria-labelledby="blog-title">
+      <p class="text-sm font-medium tracking-[0.18em] text-fg-subtle uppercase">Blog</p>
 
-      <h1 class="text-4xl font-semibold tracking-tight text-fg sm:text-5xl">Notes & Articles</h1>
+      <h1
+        id="blog-title"
+        class="mt-6 max-w-4xl text-4xl leading-[1.08] font-semibold tracking-[-0.035em] text-fg sm:text-5xl lg:text-7xl"
+      >
+        Notes &
+        <span class="text-fg-muted"> Articles</span>
+      </h1>
 
-      <p class="mt-5 max-w-2xl leading-7 text-fg-muted">
+      <p class="mt-10 text-base leading-8 text-fg-muted sm:text-lg">
         关于前端架构、工程化、性能优化以及 AI Agent 的实践与思考。
       </p>
-    </header>
+    </section>
 
     {
       posts.length > 0 ? (
-        <div class="space-y-4">
+        <div class="mt-18 space-y-4 sm:mt-22">
           {posts.map((post) => (
             <BlogCard post={post} />
           ))}
         </div>
       ) : (
-        <p class="text-fg-subtle">暂时还没有发布文章。</p>
+        <p class="mt-18 text-xl text-fg-subtle sm:mt-22">暂时还没有发布文章。</p>
       )
     }
-  </section>
+  </div>
 </BaseLayout>
