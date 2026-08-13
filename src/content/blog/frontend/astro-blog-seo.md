@@ -2106,3 +2106,29 @@ Ranking
 \`\`\`
 
 这些以前经常被我统称成“Google 能不能搜到”的不同阶段。
+
+## Core Web Vitals：性能为什么也会进入 SEO 讨论
+
+准备上线博客时，我第一次系统检查了 Core Web Vitals。
+
+目前主要包括：
+
+- LCP：加载体验
+- INP：交互响应
+- CLS：视觉稳定
+
+我一开始容易把它理解成：
+
+> Lighthouse 分数越高，SEO 就越好。
+
+但这并不准确。
+
+Core Web Vitals 更本质上是在衡量真实用户体验，Google 的搜索系统也会参考页面体验相关信号，但它并不是一个“性能分数直接换排名”的公式。
+
+在上线前，我主要通过 Lighthouse 做实验室测试：
+
+```text
+LCP
+CLS
+TBT
+```
