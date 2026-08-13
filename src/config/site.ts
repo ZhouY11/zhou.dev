@@ -9,12 +9,16 @@ export const siteConfig = {
 
   nav: [
     {
-      label: 'Home',
+      label: '首页',
       href: '/',
     },
     {
-      label: 'Blog',
+      label: '博客',
       href: '/blog',
+    },
+    {
+      label: '关于',
+      href: '/about',
     },
   ],
 
