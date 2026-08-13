@@ -63,7 +63,9 @@ export default function SearchCommand({ posts }: SearchCommandProps) {
       <button
         className="flex items-center gap-2 rounded-lg border focus-ring border-border px-3 py-2 text-sm text-fg-muted transition-colors hover:border-white/20 hover:text-fg"
         type="button"
+        aria-label="搜索文章"
         aria-haspopup="dialog"
+        aria-controls="search-command-dialog"
         onClick={openDialog}
       >
         <span aria-hidden="true">⌕</span>
@@ -74,6 +76,7 @@ export default function SearchCommand({ posts }: SearchCommandProps) {
       </button>
       <dialog
         ref={dialogRef}
+        id="search-command-dialog"
         className="m-auto w-[min(42rem,calc(100%-2rem))] rounded-2xl border border-border bg-bg p-0 text-fg shadow-2xl backdrop:bg-black/70 backdrop:backdrop-blur-sm"
         aria-labelledby="search-command-title"
         onClose={() => {
