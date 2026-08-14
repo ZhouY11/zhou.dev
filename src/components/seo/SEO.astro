@@ -1,4 +1,5 @@
 ---
+import { ogConfig } from '@/config/og';
 import { siteConfig } from '@/config/site';
 
 interface Props {
@@ -7,6 +8,8 @@ interface Props {
   canonical?: URL | string;
   noindex?: boolean;
   type?: 'website' | 'article';
+  ogImage?: string;
+  ogImageAlt?: string;
 }
 
 const {
@@ -15,11 +18,15 @@ const {
   canonical,
   noindex = false,
   type = 'website',
+  ogImage = ogConfig.ogImageSite,
+  ogImageAlt = `${title} — ${siteConfig.name}`,
 } = Astro.props;
 
 const pageTitle = title ? `${title} | ${siteConfig.name}` : siteConfig.title;
 
 const rssURL = Astro.site ? new URL('/rss.xml', Astro.site) : undefined;
+
+const ogImageURL = Astro.site ? new URL(ogImage, Astro.site) : undefined;
 ---
 
 <title>{pageTitle}</title>
@@ -50,6 +57,19 @@ const rssURL = Astro.site ? new URL('/rss.xml', Astro.site) : undefined;
 {canonical && <meta property="og:url" content={canonical} />}
 
 <meta property="og:locale" content={siteConfig.locale.replace('-', '_')} />
+
+{
+  ogImage && (
+    <>
+      <meta property="og:image" content={ogImageURL} />
+      <meta property="og:image:type" content="image/png" />
+      <meta property="og:image:alt" content={ogImageAlt} />
+
+      <meta name="twitter:image" content={ogImageURL} />
+      <meta name="twitter:image:alt" content={ogImageAlt} />
+    </>
+  )
+}
 
 <meta name="twitter:card" content="summary" />
 
