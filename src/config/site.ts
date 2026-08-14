@@ -17,6 +17,10 @@ export const siteConfig = {
       href: '/blog',
     },
     {
+      label: '项目',
+      href: '/projects',
+    },
+    {
       label: '关于',
       href: '/about',
     },
