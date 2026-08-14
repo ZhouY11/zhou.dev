@@ -1,14 +1,15 @@
 ---
+import { getFeaturedProjects } from '@/lib/projects';
+
 import AboutPreview from '../components/home/AboutPreview.astro';
 import FeaturedArticles from '../components/home/FeaturedArticles.astro';
 import Hero from '../components/home/Hero.astro';
 import SelectedProjects from '../components/home/SelectedProjects.astro';
-import { getFeaturedProjects } from '../data/projects';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getFeaturedPosts } from '../lib/blog';
 
 const featuredPosts = await getFeaturedPosts(3);
-const featuredProjects = getFeaturedProjects(3);
+const featuredProjects = await getFeaturedProjects(3);
 ---
 
 <BaseLayout>

@@ -1,11 +1,11 @@
 ---
-import type { Project } from '../../data/projects';
+import type { ProjectSummary } from '@/types/project';
 
 import ProjectShowcaseIsland from '../projects/ProjectShowcaseIsland.astro';
 import SectionHeading from './SectionHeading.astro';
 
 interface Props {
-  projects: Project[];
+  projects: ProjectSummary[];
 }
 
 const { projects } = Astro.props;
