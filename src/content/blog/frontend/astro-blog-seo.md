@@ -614,7 +614,7 @@ https://example.com/blog/astro
 
 Astro 提供：
 
-```ts
+```text
 Astro.site;
 ```
 
@@ -622,7 +622,7 @@ Astro.site;
 
 再结合：
 
-```ts
+```text
 Astro.url.pathname;
 ```
 
@@ -664,7 +664,7 @@ https://example.com
 
 那么就应该等生产部署地址真正确定以后，再配置：
 
-```ts
+```text
 site: 'https://真实生产域名';
 ```
 
@@ -676,7 +676,7 @@ site: 'https://真实生产域名';
 
 目前 `BaseLayout` 还支持：
 
-```ts
+```text
 noindex?: boolean;
 ```
 
@@ -2304,3 +2304,40 @@ Live URL
 ↓
 搜索引擎自行判断
 ```
+
+# Open Graph Image：分享体验不是搜索排名
+
+Open Graph metadata 可以告诉支持它的平台：
+
+- 页面标题
+- 描述
+- canonical URL
+- 代表图片
+
+其中：
+
+```html
+<meta property="og:image" content="https://example.com/og/article.png" />
+```
+
+会成为页面在社交平台分享时的重要视觉内容。
+
+我的博客没有在运行时生成这些图片，而是：
+
+```text
+Content Collection
+        ↓
+Astro build
+        ↓
+OG image generator
+        ↓
+static PNG
+```
+
+因此每篇文章虽然拥有独立的动态 OG Image，但生产环境实际提供的仍然只是静态资源。
+
+这让我进一步理解：
+
+> Build-time dynamic 和 runtime dynamic 是两件不同的事情。
+
+OG metadata 会改善内容在社交平台中的展示和传播体验，但它本身不应该被理解为直接提高 Google 排名的手段。
