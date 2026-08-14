@@ -33,6 +33,11 @@ const { post, newerPost, olderPost } = Astro.props;
 const { Content } = await render(post);
 ---
 
-<BlogPostLayout post={post} newerPost={newerPost} olderPost={olderPost}>
+<BlogPostLayout
+  post={post}
+  newerPost={newerPost}
+  olderPost={olderPost}
+  ogImage={`/og/blog/${post.id}.png`}
+>
   <Content />
 </BlogPostLayout>

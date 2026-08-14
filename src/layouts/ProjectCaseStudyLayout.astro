@@ -7,12 +7,20 @@ interface Props {
   role: string;
   year: string;
   tags: string[];
+
+  ogImage?: string;
 }
 
-const { title, description, role, year, tags } = Astro.props;
+const { title, description, role, year, tags, ogImage } = Astro.props;
 ---
 
-<BaseLayout title={title} description={description} type="article">
+<BaseLayout
+  title={title}
+  description={description}
+  type="article"
+  ogImage={ogImage}
+  ogImageAlt={`${title} 的项目案例分享预览图`}
+>
   <article class="mx-auto max-w-3xl px-6 py-24">
     <header class="mb-14">
       <a

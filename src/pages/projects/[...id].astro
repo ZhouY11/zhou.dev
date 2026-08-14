@@ -28,6 +28,7 @@ const { Content } = await render(project);
   role={project.data.role}
   year={project.data.year}
   tags={project.data.tags}
+  ogImage={`/og/projects/${project.id}.png`}
 >
   <Content />
 </ProjectCaseStudyLayout>
