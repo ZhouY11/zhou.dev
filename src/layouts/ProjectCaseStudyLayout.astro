@@ -1,0 +1,58 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  role: string;
+  year: string;
+  tags: string[];
+}
+
+const { title, description, role, year, tags } = Astro.props;
+---
+
+<BaseLayout title={title} description={description} type="article">
+  <article class="mx-auto max-w-3xl px-6 py-24">
+    <header class="mb-14">
+      <a
+        href="/#projects"
+        class="inline-flex rounded-md focus-ring text-sm text-fg-muted transition-colors hover:text-fg"
+      >
+        ← 返回项目
+      </a>
+
+      <div class="mt-10 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-fg-subtle">
+        <span>{role}</span>
+        <span aria-hidden="true">·</span>
+        <span>{year}</span>
+      </div>
+
+      <h1
+        class="mt-6 text-4xl leading-[1.08] font-semibold tracking-[-0.035em] text-fg sm:text-5xl lg:text-6xl"
+      >
+        {title}
+      </h1>
+
+      <p class="mt-7 max-w-3xl text-lg leading-8 text-fg-muted">
+        {description}
+      </p>
+
+      <ul class="mt-8 flex flex-wrap gap-2" aria-label="项目技术">
+        {
+          tags.map((tag) => (
+            <li class="rounded-full border border-border bg-bg-elevated px-3 py-1.5 text-xs text-fg-muted">
+              {tag}
+            </li>
+          ))
+        }
+      </ul>
+    </header>
+
+    <div
+      class="prose max-w-none prose-zinc dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-brand prose-pre:border prose-pre:border-border"
+    >
+      <slot />
+    </div>
+  </article>
+</BaseLayout>

@@ -1,9 +1,9 @@
-import type { Project } from '@/data/projects';
+import type { ProjectSummary } from '@/types/project';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Props {
-  projects: Project[];
+  projects: ProjectSummary[];
 }
 
 export default function ProjectShowcase({ projects }: Props) {
@@ -100,29 +100,19 @@ export default function ProjectShowcase({ projects }: Props) {
               </ul>
             </div>
 
-            {(project.href || project.repository) && (
+            {project.href && (
               <footer className="mt-10 flex flex-wrap gap-4 border-t border-border pt-6">
-                {project.href && (
+                {
                   <a
                     href={project.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg focus-ring text-sm font-medium text-fg transition-colors hover:text-brand"
+                    className="inline-flex items-center rounded-md focus-ring text-sm font-medium text-fg transition-colors hover:text-brand"
                   >
-                    View Project ↗
+                    阅读案例
+                    <span className="ml-1" aria-hidden="true">
+                      →
+                    </span>
                   </a>
-                )}
-
-                {project.repository && (
-                  <a
-                    href={project.repository}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg focus-ring text-sm text-fg-muted transition-colors hover:text-fg"
-                  >
-                    Source ↗
-                  </a>
-                )}
+                }
               </footer>
             )}
           </TabsContent>
