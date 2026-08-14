@@ -1,12 +1,12 @@
 ---
+import AboutTeaser from '@/components/home/AboutTeaser.astro';
+import ClosingCTA from '@/components/home/ClosingCTA.astro';
+import Hero from '@/components/home/Hero.astro';
+import SelectedProjects from '@/components/home/SelectedProjects.astro';
+import SelectedWriting from '@/components/home/SelectedWriting.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getFeaturedPosts } from '@/lib/blog';
 import { getFeaturedProjects } from '@/lib/projects';
-
-import AboutPreview from '../components/home/AboutPreview.astro';
-import FeaturedArticles from '../components/home/FeaturedArticles.astro';
-import Hero from '../components/home/Hero.astro';
-import SelectedProjects from '../components/home/SelectedProjects.astro';
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { getFeaturedPosts } from '../lib/blog';
 
 const featuredPosts = await getFeaturedPosts(3);
 const featuredProjects = await getFeaturedProjects(3);
@@ -15,9 +15,11 @@ const featuredProjects = await getFeaturedProjects(3);
 <BaseLayout>
   <Hero />
 
-  <FeaturedArticles posts={featuredPosts} />
-
   <SelectedProjects projects={featuredProjects} />
 
-  <AboutPreview />
+  <SelectedWriting posts={featuredPosts} />
+
+  <AboutTeaser />
+
+  <ClosingCTA />
 </BaseLayout>

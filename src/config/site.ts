@@ -13,12 +13,12 @@ export const siteConfig = {
       href: '/',
     },
     {
-      label: '博客',
-      href: '/blog',
-    },
-    {
       label: '项目',
       href: '/projects',
+    },
+    {
+      label: '博客',
+      href: '/blog',
     },
     {
       label: '关于',
