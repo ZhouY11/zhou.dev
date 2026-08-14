@@ -1,0 +1,89 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getProjectSummaries } from '@/lib/projects';
+
+const projects = await getProjectSummaries();
+---
+
+<BaseLayout title="项目" description="记录我参与和推动过的前端架构、工程化与复杂业务系统实践。">
+  <div class="mx-auto max-w-4xl px-6 py-24">
+    <!-- Header -->
+    <header class="max-w-4xl">
+      <p class="text-sm font-medium tracking-[0.18em] text-fg-subtle uppercase">Projects</p>
+
+      <h1
+        class="mt-6 text-4xl leading-[1.08] font-semibold tracking-[-0.035em] text-fg sm:text-5xl lg:text-7xl"
+      >
+        不只展示结果，
+        <span class="text-fg-muted"> 也记录问题是如何被解决的。 </span>
+      </h1>
+
+      <p class="mt-7 max-w-2xl text-base leading-8 text-fg-muted sm:text-lg">
+        这里记录我参与和推动过的一些前端工程实践，
+        包括架构演进、平台能力建设、性能优化以及真实方案中的取舍。
+      </p>
+    </header>
+
+    <!-- Project index -->
+    <section class="mt-20 border-t border-border sm:mt-28" aria-label="项目列表">
+      {
+        projects.length > 0 ? (
+          projects.map((project, index) => (
+            <article class="group grid gap-6 border-b border-border py-10 sm:py-12 lg:grid-cols-[5rem_1fr_auto] lg:gap-10 lg:py-14">
+              <div class="text-xs tracking-[0.16em] text-fg-subtle" aria-hidden="true">
+                {String(index + 1).padStart(2, '0')}
+              </div>
+
+              <div class="max-w-3xl">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-fg-subtle">
+                  <span>{project.role}</span>
+
+                  <span aria-hidden="true">·</span>
+
+                  <span>{project.year}</span>
+                </div>
+
+                <h2 class="mt-4 text-2xl font-semibold tracking-tight text-fg sm:text-3xl">
+                  <a
+                    href={project.href}
+                    class="rounded-md focus-ring transition-colors group-hover:text-brand"
+                  >
+                    {project.title}
+                  </a>
+                </h2>
+
+                <p class="mt-4 max-w-2xl text-sm leading-7 text-fg-muted sm:text-base">
+                  {project.description}
+                </p>
+
+                <ul class="mt-6 flex flex-wrap gap-2" aria-label={`${project.title} 技术标签`}>
+                  {project.tags.map((tag) => (
+                    <li class="rounded-full border border-border bg-bg-elevated px-3 py-1.5 text-xs text-fg-muted">
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div class="flex items-start lg:justify-end">
+                <a
+                  href={project.href}
+                  class="inline-flex min-h-10 items-center rounded-full border focus-ring border-border px-4 py-2 text-sm font-medium text-fg-muted transition-[color,border-color,transform] hover:-translate-y-0.5 hover:border-fg-subtle hover:text-fg motion-reduce:transform-none"
+                >
+                  阅读案例
+                  <span class="ml-2" aria-hidden="true">
+                    →
+                  </span>
+                </a>
+              </div>
+            </article>
+          ))
+        ) : (
+          <div class="mt-16 border-t border-border py-16">
+            <p class="text-fg-muted">项目案例正在整理中。</p>
+          </div>
+        )
+      }
+    </section>
+  </div>
+</BaseLayout>
