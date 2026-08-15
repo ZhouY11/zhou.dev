@@ -1,0 +1,57 @@
+---
+import type { BlogTagSummary } from '@/lib/blog-taxonomy';
+
+import BlogCard from '@/components/blog/BlogCard.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getBlogTags, getPostsByTag } from '@/lib/blog';
+
+interface Props {
+  tag: BlogTagSummary;
+}
+
+export async function getStaticPaths() {
+  const tags = await getBlogTags();
+
+  return tags.map((tag) => ({
+    params: {
+      tag: tag.slug,
+    },
+
+    props: {
+      tag,
+    },
+  }));
+}
+
+const { tag } = Astro.props;
+
+const posts = await getPostsByTag(tag.slug);
+---
+
+<BaseLayout
+  title={`${tag.label} 相关文章`}
+  description={`浏览所有与 ${tag.label} 相关的技术文章。`}
+>
+  <div class="mx-auto w-full max-w-6xl px-6 py-20 sm:px-8 sm:py-28 lg:px-10">
+    <header class="max-w-3xl">
+      <a
+        href="/blog/tags"
+        class="inline-flex rounded-md focus-ring text-sm text-fg-muted hover:text-fg"
+      >
+        ← 所有标签
+      </a>
+
+      <h1 class="mt-8 text-4xl font-semibold tracking-tight text-fg sm:text-5xl">
+        #{tag.label}
+      </h1>
+
+      <p class="mt-5 text-fg-muted">
+        {tag.count} 篇文章
+      </p>
+    </header>
+
+    <div class="mt-14 grid gap-6">
+      {posts.map((post) => <BlogCard post={post} />)}
+    </div>
+  </div>
+</BaseLayout>

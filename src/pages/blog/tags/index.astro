@@ -1,0 +1,39 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getBlogTags } from '@/lib/blog';
+
+const tags = await getBlogTags();
+---
+
+<BaseLayout title="文章标签" description="按技术主题浏览 Zhou 的博客文章。">
+  <div class="mx-auto w-full max-w-6xl px-6 py-20 sm:px-8 sm:py-28 lg:px-10">
+    <header class="max-w-3xl">
+      <p class="text-sm font-medium tracking-[0.18em] text-fg-subtle uppercase">Tags</p>
+
+      <h1 class="mt-5 text-4xl font-semibold tracking-tight text-fg sm:text-5xl">按主题浏览文章</h1>
+
+      <p class="mt-6 max-w-2xl text-base leading-8 text-fg-muted">
+        从具体技术主题进入，继续阅读彼此相关的实践和思考。
+      </p>
+    </header>
+
+    <ul class="mt-14 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        tags.map((tag) => (
+          <li>
+            <a
+              href={`/blog/tags/${tag.slug}`}
+              class="group flex items-center justify-between rounded-2xl border focus-ring border-border bg-bg-elevated px-5 py-5 transition-colors hover:border-fg-subtle"
+            >
+              <span class="font-medium text-fg transition-colors group-hover:text-brand">
+                {tag.label}
+              </span>
+
+              <span class="text-sm text-fg-subtle">{tag.count}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</BaseLayout>

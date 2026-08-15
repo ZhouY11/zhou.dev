@@ -1,0 +1,45 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getBlogSeriesList } from '@/lib/blog';
+
+const seriesList = await getBlogSeriesList();
+---
+
+<BaseLayout title="文章系列" description="按完整学习和工程实践系列浏览 Zhou 的技术文章。">
+  <div class="mx-auto w-full max-w-6xl px-6 py-20 sm:px-8 sm:py-28 lg:px-10">
+    <header class="max-w-3xl">
+      <p class="text-sm font-medium tracking-[0.18em] text-fg-subtle uppercase">Series</p>
+
+      <h1 class="mt-5 text-4xl font-semibold tracking-tight text-fg sm:text-5xl">
+        不只阅读单篇文章
+      </h1>
+
+      <p class="mt-6 max-w-2xl leading-8 text-fg-muted">
+        系列文章记录一个主题从问题出现、方案设计到实际落地的完整过程。
+      </p>
+    </header>
+
+    <div class="mt-14 border-t border-border">
+      {
+        seriesList.map((series) => (
+          <article class="grid gap-5 border-b border-border py-9 lg:grid-cols-[1fr_auto] lg:gap-10">
+            <div>
+              <h2 class="text-2xl font-semibold tracking-tight text-fg">
+                <a
+                  href={`/blog/series/${series.id}`}
+                  class="rounded-md focus-ring hover:text-brand"
+                >
+                  {series.title}
+                </a>
+              </h2>
+
+              <p class="mt-4 max-w-2xl leading-7 text-fg-muted">{series.description}</p>
+            </div>
+
+            <p class="text-sm text-fg-subtle lg:pt-1">{series.count} 篇</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>
