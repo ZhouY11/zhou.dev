@@ -8,7 +8,9 @@
   "packageManager": "pnpm@10.27.0",
   "scripts": {
     "dev": "astro dev",
-    "build": "pnpm typecheck && astro build",
+    "build": "pnpm typecheck && pnpm build:astro && pnpm build:search",
+    "build:astro": "astro build",
+    "build:search": "pagefind --site dist && node scripts/sync-pagefind.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "lint": "eslint \"src/**/*.{js,mjs,cjs,ts,mts,cts,astro}\"",
@@ -56,6 +58,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
+    "pagefind": "^1.5.2",
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.8.1",
