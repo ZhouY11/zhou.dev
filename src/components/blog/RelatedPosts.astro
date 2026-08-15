@@ -1,0 +1,35 @@
+---
+import type { BlogPostSummary } from '@/lib/blog-taxonomy';
+
+interface Props {
+  posts: BlogPostSummary[];
+}
+
+const { posts } = Astro.props;
+---
+
+{
+  posts.length > 0 && (
+    <section class="mt-16 border-t border-border pt-12" aria-labelledby="related-posts-title">
+      <p class="text-xs font-medium tracking-[0.16em] text-fg-subtle uppercase">Continue Reading</p>
+
+      <h2 id="related-posts-title" class="mt-3 text-2xl font-semibold tracking-tight text-fg">
+        继续阅读
+      </h2>
+
+      <div class="mt-8 grid gap-4 md:grid-cols-3">
+        {posts.map((post) => (
+          <article class="rounded-2xl border border-border bg-bg-elevated p-5">
+            <h3 class="text-base leading-6 font-medium text-fg">
+              <a href={post.href} class="rounded-md focus-ring hover:text-brand">
+                {post.title}
+              </a>
+            </h3>
+
+            <p class="mt-3 line-clamp-3 text-sm leading-6 text-fg-muted">{post.description}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}

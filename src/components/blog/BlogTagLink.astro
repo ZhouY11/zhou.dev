@@ -1,0 +1,16 @@
+---
+import { getBlogTagPath } from '@/lib/blog-taxonomy';
+
+interface Props {
+  tag: string;
+}
+
+const { tag } = Astro.props;
+---
+
+<a
+  href={getBlogTagPath(tag)}
+  class="inline-flex rounded-full border focus-ring border-border bg-bg-elevated px-3 py-1.5 text-xs text-fg-muted transition-colors hover:text-fg"
+>
+  #{tag}
+</a>
