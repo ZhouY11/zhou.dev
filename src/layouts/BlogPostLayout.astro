@@ -32,21 +32,24 @@ const { series, relatedPosts = [], ogImage, post, olderPost, newerPost } = Astro
 >
   <article class="mx-auto max-w-3xl px-6 py-24">
     <header class="mb-14">
-      <ul class="mb-5 flex flex-wrap gap-2" aria-label="文章标签">
+      <ul class="mb-5 flex flex-wrap gap-2" aria-label="文章标签" data-pagefind-meta="tags">
         {
           post.data.tags.map((tag) => (
-            <li>
+            <li data-pagefind-filter="tag">
               <BlogTagLink tag={tag} />
             </li>
           ))
         }
       </ul>
 
-      <h1 class="text-4xl leading-tight font-semibold tracking-tight text-fg sm:text-5xl">
+      <h1
+        class="text-4xl leading-tight font-semibold tracking-tight text-fg sm:text-5xl"
+        data-pagefind-meta="title"
+      >
         {post.data.title}
       </h1>
 
-      <p class="mt-6 text-lg leading-8 text-fg-muted">
+      <p class="mt-6 text-lg leading-8 text-fg-muted" data-pagefind-meta="description">
         {post.data.description}
       </p>
 
@@ -67,6 +70,7 @@ const { series, relatedPosts = [], ogImage, post, olderPost, newerPost } = Astro
 
     <div
       class="prose max-w-none prose-zinc dark:prose-invert prose-headings:scroll-mt-24 prose-a:text-brand prose-pre:border prose-pre:border-border"
+      data-pagefind-body
     >
       <slot />
     </div>
