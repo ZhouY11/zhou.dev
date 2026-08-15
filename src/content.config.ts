@@ -2,6 +2,8 @@ import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 import { defineCollection } from 'astro:content';
 
+import { BLOG_SERIES_IDS } from '@/config/blog-series';
+
 const blog = defineCollection({
   loader: glob({
     base: './src/content/blog',
@@ -20,11 +22,19 @@ const blog = defineCollection({
 
       tags: z.array(z.string()).default([]),
 
+      series: z
+        .object({
+          id: z.enum(BLOG_SERIES_IDS),
+          order: z.number().int().positive(),
+        })
+        .optional(),
+
       featured: z.boolean().default(false),
 
       draft: z.boolean().default(false),
 
       cover: image().optional(),
+      coverAlt: z.string().optional(),
     }),
 });
 

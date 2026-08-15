@@ -22,6 +22,30 @@ const posts = await getPublishedPosts();
       <p class="mt-10 text-base leading-8 text-fg-muted sm:text-lg">
         关于前端架构、工程化、性能优化以及 AI Agent 的实践与思考。
       </p>
+
+      <nav class="mt-8 flex flex-wrap gap-2" aria-label="博客内容浏览">
+        <a
+          href="/blog"
+          aria-current="page"
+          class="rounded-full focus-ring bg-fg px-4 py-2 text-sm font-medium text-bg"
+        >
+          全部文章
+        </a>
+
+        <a
+          href="/blog/tags"
+          class="rounded-full border focus-ring border-border px-4 py-2 text-sm text-fg-muted transition-colors hover:text-fg"
+        >
+          标签
+        </a>
+
+        <a
+          href="/blog/series"
+          class="rounded-full border focus-ring border-border px-4 py-2 text-sm text-fg-muted transition-colors hover:text-fg"
+        >
+          系列
+        </a>
+      </nav>
     </section>
 
     {

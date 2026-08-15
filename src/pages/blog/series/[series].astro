@@ -1,0 +1,73 @@
+---
+import type { BlogSeriesSummary } from '@/lib/blog-taxonomy';
+
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getBlogSeriesList, getPostsBySeries } from '@/lib/blog';
+
+interface Props {
+  series: BlogSeriesSummary;
+}
+
+export async function getStaticPaths() {
+  const seriesList = await getBlogSeriesList();
+
+  return seriesList.map((series) => ({
+    params: {
+      series: series.id,
+    },
+
+    props: {
+      series,
+    },
+  }));
+}
+
+const { series } = Astro.props;
+
+const posts = await getPostsBySeries(series.id);
+---
+
+<BaseLayout title={series.title} description={series.description}>
+  <div class="mx-auto w-full max-w-6xl px-6 py-20 sm:px-8 sm:py-28 lg:px-10">
+    <header class="max-w-4xl">
+      <a
+        href="/blog/series"
+        class="inline-flex rounded-md focus-ring text-sm text-fg-muted hover:text-fg"
+      >
+        ← 所有系列
+      </a>
+
+      <p class="mt-10 text-sm font-medium tracking-[0.18em] text-fg-subtle uppercase">Series</p>
+
+      <h1 class="mt-5 text-4xl font-semibold tracking-tight text-fg sm:text-5xl">
+        {series.title}
+      </h1>
+
+      <p class="mt-6 max-w-2xl text-base leading-8 text-fg-muted">
+        {series.description}
+      </p>
+    </header>
+
+    <ol class="mt-14 border-t border-border">
+      {
+        posts.map((post, index) => (
+          <li class="grid gap-5 border-b border-border py-8 sm:grid-cols-[3rem_1fr] sm:gap-6">
+            <span class="pt-1 text-xs text-fg-subtle" aria-hidden="true">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+
+            <article>
+              <h2 class="text-xl font-medium tracking-tight text-fg sm:text-2xl">
+                <a href={`/blog/${post.id}`} class="rounded-md focus-ring hover:text-brand">
+                  {post.data.title}
+                </a>
+              </h2>
+
+              <p class="mt-3 max-w-2xl text-sm leading-7 text-fg-muted">{post.data.description}</p>
+            </article>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</BaseLayout>

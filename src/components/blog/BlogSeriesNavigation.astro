@@ -1,0 +1,65 @@
+---
+import type { BlogSeriesContext } from '@/lib/blog-taxonomy';
+
+interface Props {
+  series: BlogSeriesContext;
+}
+
+const { series } = Astro.props;
+---
+
+<section
+  class="mt-16 rounded-2xl border border-border bg-bg-elevated p-6 sm:p-8"
+  aria-labelledby="article-series-title"
+>
+  <div class="flex flex-wrap items-start justify-between gap-5">
+    <div class="max-w-2xl">
+      <p class="text-xs font-medium tracking-[0.16em] text-fg-subtle uppercase">
+        Series · {series.position}/{series.total}
+      </p>
+
+      <h2 id="article-series-title" class="mt-3 text-lg font-semibold text-fg">
+        <a href={`/blog/series/${series.id}`} class="rounded-md focus-ring hover:text-brand">
+          {series.title}
+        </a>
+      </h2>
+
+      <p class="mt-2 text-sm leading-6 text-fg-muted">
+        {series.description}
+      </p>
+    </div>
+  </div>
+
+  {
+    (series.previous || series.next) && (
+      <nav
+        class="mt-7 grid gap-4 border-t border-border pt-6 sm:grid-cols-2"
+        aria-label="系列文章导航"
+      >
+        <div>
+          {series.previous && (
+            <a href={series.previous.href} class="group block rounded-lg focus-ring text-sm">
+              <span class="text-fg-subtle">← 上一篇</span>
+
+              <span class="mt-1 block font-medium text-fg group-hover:text-brand">
+                {series.previous.title}
+              </span>
+            </a>
+          )}
+        </div>
+
+        <div class="sm:text-right">
+          {series.next && (
+            <a href={series.next.href} class="group block rounded-lg focus-ring text-sm">
+              <span class="text-fg-subtle">下一篇 →</span>
+
+              <span class="mt-1 block font-medium text-fg group-hover:text-brand">
+                {series.next.title}
+              </span>
+            </a>
+          )}
+        </div>
+      </nav>
+    )
+  }
+</section>

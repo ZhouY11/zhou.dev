@@ -3,8 +3,8 @@ import type { CollectionEntry } from 'astro:content';
 
 import { render } from 'astro:content';
 
-import BlogPostLayout from '../../layouts/BlogPostLayout.astro';
-import { getPublishedPosts } from '../../lib/blog';
+import BlogPostLayout from '@/layouts/BlogPostLayout.astro';
+import { getBlogPostNavigation, getPublishedPosts } from '@/lib/blog';
 
 export async function getStaticPaths() {
   const posts = await getPublishedPosts();
@@ -31,13 +31,17 @@ interface Props {
 const { post, newerPost, olderPost } = Astro.props;
 
 const { Content } = await render(post);
+
+const { series, relatedPosts } = await getBlogPostNavigation(post);
 ---
 
 <BlogPostLayout
+  series={series}
+  relatedPosts={relatedPosts}
+  ogImage={`/og/blog/${post.id}.png`}
   post={post}
   newerPost={newerPost}
   olderPost={olderPost}
-  ogImage={`/og/blog/${post.id}.png`}
 >
   <Content />
 </BlogPostLayout>
