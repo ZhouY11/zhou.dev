@@ -2,7 +2,6 @@ export interface BlogSearchResult {
   title: string;
   description: string;
   excerpt: string;
-  plainExcerpt: string;
   url: string;
 }
 
@@ -14,12 +13,10 @@ export interface BlogSearchResponse {
 interface PagefindResultData {
   url: string;
   excerpt: string;
-  plain_excerpt: string;
 
   meta: {
     title?: string;
     description?: string;
-    tags?: string;
   };
 }
 
@@ -31,16 +28,18 @@ interface PagefindSearchResponse {
   results: PagefindResult[];
 }
 
+interface PagefindOptions {
+  excerptLength?: number;
+
+  ranking?: {
+    metaWeights?: Record<string, number>;
+  };
+}
+
 interface PagefindApi {
+  options(options: PagefindOptions): Promise<void>;
+
   init(): Promise<void>;
-
-  options(options: {
-    excerptLength?: number;
-
-    ranking?: {
-      metaWeights?: Record<string, number>;
-    };
-  }): Promise<void>;
 
   debouncedSearch(
     term: string,
@@ -50,6 +49,8 @@ interface PagefindApi {
 }
 
 const PAGEFIND_PATH = '/pagefind/pagefind.js';
+
+const SEARCH_DEBOUNCE = 180;
 
 let pagefindPromise: Promise<PagefindApi> | undefined;
 
@@ -62,7 +63,7 @@ async function loadPagefind() {
       )) as PagefindApi;
 
       await pagefind.options({
-        excerptLength: 16,
+        excerptLength: 30,
 
         ranking: {
           metaWeights: {
@@ -98,7 +99,7 @@ export async function searchBlog(query: string, limit = 8): Promise<BlogSearchRe
 
   const pagefind = await loadPagefind();
 
-  const search = await pagefind.debouncedSearch(value, {}, 180);
+  const search = await pagefind.debouncedSearch(value, {}, SEARCH_DEBOUNCE);
 
   if (!search) {
     return null;
@@ -114,8 +115,6 @@ export async function searchBlog(query: string, limit = 8): Promise<BlogSearchRe
         description: data.meta.description ?? '',
 
         excerpt: data.excerpt,
-
-        plainExcerpt: data.plain_excerpt,
 
         url: data.url,
       };
