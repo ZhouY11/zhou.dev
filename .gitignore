@@ -2,6 +2,8 @@
 dist/
 # generated types
 .astro/
+# web analytics
+.vercel/
 
 # dependencies
 node_modules/
