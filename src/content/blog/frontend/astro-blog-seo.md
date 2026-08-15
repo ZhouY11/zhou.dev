@@ -2,11 +2,14 @@
 title: 从 0 开始理解 SEO：我在 Astro 博客中做了什么
 description: 从一个前端工程师的视角，通过 Astro 个人技术博客的开发过程逐步理解 SEO，目前记录 Title、Description、Canonical、noindex、静态 HTML 与社交分享元数据等基础实践。
 publishedAt: 2026-08-11
-updatedAt: 2026-08-13
+updatedAt: 2026-08-15
 tags:
   - SEO
   - Astro
   - Frontend
+series:
+  id: astro-blog-from-zero
+  order: 1
 featured: true
 draft: false
 ---
@@ -2341,3 +2344,113 @@ static PNG
 > Build-time dynamic 和 runtime dynamic 是两件不同的事情。
 
 OG metadata 会改善内容在社交平台中的展示和传播体验，但它本身不应该被理解为直接提高 Google 排名的手段。
+
+# 信息架构与内部链接：让文章不再成为孤岛
+
+随着博客文章数量增加，我开始发现仅有一个按发布时间排序的文章列表并不够。
+
+原来的结构大致是：
+
+```text
+Blog
+  ↓
+Article
+```
+
+用户读完文章以后，除了返回博客列表，很难继续发现相关内容。
+
+因此我增加了：
+
+```text
+Tags
+Series
+Related Posts
+```
+
+最终：
+
+```text
+Tag
+  ↓
+Related Articles
+
+Series
+  ↓
+Article 1
+  ↓
+Article 2
+  ↓
+Article 3
+
+Article
+  ↓
+Related Posts
+```
+
+这里让我理解了内部链接的两个价值。
+
+### 对用户
+
+内部链接帮助读者回答：
+
+> 接下来还有什么值得继续阅读？
+
+例如文章中的：
+
+```text
+#Astro
+```
+
+会链接到所有 Astro 相关文章，而 Series 则提供明确的连续阅读路径。
+
+### 对搜索引擎
+
+Google 可以通过普通的 `<a href>` 链接发现网站中的其他页面。
+
+因此重要页面不应该成为只有 Sitemap 才能发现的孤立 URL。
+
+内部链接也不是简单地：
+
+```text
+链接越多越好
+```
+
+更重要的是：
+
+```text
+相关内容
++
+有意义的 anchor text
++
+清晰的信息层级
+```
+
+因此我的实现没有为了增加链接数量而随机推荐文章，而是只根据：
+
+```text
+same series
++
+shared tags
+```
+
+生成 Related Posts。
+
+如果没有真正相关的文章，则不显示 Related Posts。
+
+这让我开始把 SEO 从单个页面的：
+
+```text
+title
+description
+canonical
+```
+
+扩展到整个网站的：
+
+```text
+Information Architecture
++
+Internal Linking
+```
+
+Google 当前也明确建议：站内重要页面应当从其他可发现页面获得至少一个内部链接，并使用能帮助用户和 Google 理解目标内容的 anchor text。
