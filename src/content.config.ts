@@ -33,6 +33,8 @@ const blog = defineCollection({
 
       draft: z.boolean().default(false),
 
+      comments: z.boolean().default(true),
+
       cover: image().optional(),
       coverAlt: z.string().optional(),
     }),

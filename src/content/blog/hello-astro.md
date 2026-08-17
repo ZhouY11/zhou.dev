@@ -8,6 +8,7 @@ tags:
   - Frontend
 featured: true
 draft: false
+comments: false
 ---
 
 # 为什么选择 Astro
