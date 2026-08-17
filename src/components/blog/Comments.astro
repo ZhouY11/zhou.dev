@@ -1,0 +1,167 @@
+---
+import { commentsConfig, validateCommentsConfig } from '@/config/comments';
+
+validateCommentsConfig();
+
+const isProductionBuild = import.meta.env.PROD;
+---
+
+<section
+  class="mt-16 border-t border-border pt-12 sm:mt-20 sm:pt-16"
+  aria-labelledby="comments-title"
+>
+  <header class="max-w-2xl">
+    <p class="text-xs font-medium tracking-[0.16em] text-fg-subtle uppercase">Discussion</p>
+
+    <h2 id="comments-title" class="mt-3 text-2xl font-semibold tracking-tight text-fg">参与讨论</h2>
+
+    <p class="mt-3 text-sm leading-6 text-fg-muted">
+      评论由 GitHub Discussions 提供，需要使用 GitHub 账号登录后参与。
+    </p>
+  </header>
+
+  {
+    isProductionBuild ? (
+      <div
+        class="giscus mt-8 min-h-24"
+        data-comments-root
+        data-repo={commentsConfig.repo}
+        data-repo-id={commentsConfig.repoId}
+        data-category={commentsConfig.category}
+        data-category-id={commentsConfig.categoryId}
+      />
+    ) : (
+      <div class="mt-8 rounded-xl border border-border bg-bg-muted px-5 py-4 text-sm text-fg-muted">
+        评论在 production build 中启用。 使用
+        <code class="mx-1 font-mono">pnpm build && pnpm preview</code>
+        进行本地验证。
+      </div>
+    )
+  }
+</section>
+
+<script>
+  const GISCUS_ORIGIN = 'https://giscus.app';
+
+  const GISCUS_SCRIPT_URL = `${GISCUS_ORIGIN}/client.js`;
+
+  function resolveCommentsTheme() {
+    const theme = document.documentElement.dataset.theme;
+
+    if (theme === 'light' || theme === 'dark') {
+      return theme;
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function sendTheme(root: HTMLElement) {
+    const frame = root.querySelector<HTMLIFrameElement>('iframe.giscus-frame');
+
+    if (!frame?.contentWindow) {
+      return;
+    }
+
+    frame.contentWindow.postMessage(
+      {
+        giscus: {
+          setConfig: {
+            theme: resolveCommentsTheme(),
+          },
+        },
+      },
+      GISCUS_ORIGIN,
+    );
+  }
+
+  function loadGiscus(root: HTMLElement) {
+    if (root.dataset.giscusLoaded === 'true') {
+      return;
+    }
+
+    const { repo, repoId, category, categoryId } = root.dataset;
+
+    if (!repo || !repoId || !category || !categoryId) {
+      return;
+    }
+
+    const script = document.createElement('script');
+
+    script.src = GISCUS_SCRIPT_URL;
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+
+    script.setAttribute('data-repo', repo);
+
+    script.setAttribute('data-repo-id', repoId);
+
+    script.setAttribute('data-category', category);
+
+    script.setAttribute('data-category-id', categoryId);
+
+    script.setAttribute('data-mapping', 'pathname');
+
+    script.setAttribute('data-strict', '1');
+
+    script.setAttribute('data-reactions-enabled', '1');
+
+    script.setAttribute('data-emit-metadata', '0');
+
+    script.setAttribute('data-input-position', 'top');
+
+    script.setAttribute('data-theme', resolveCommentsTheme());
+
+    script.setAttribute('data-lang', 'zh-CN');
+
+    script.setAttribute('data-loading', 'lazy');
+
+    root.dataset.giscusLoaded = 'true';
+
+    root.append(script);
+  }
+
+  function setupComments(root: HTMLElement) {
+    const loadObserver = new IntersectionObserver(
+      (entries, observer) => {
+        const shouldLoad = entries.some((entry) => entry.isIntersecting);
+
+        if (!shouldLoad) {
+          return;
+        }
+
+        loadGiscus(root);
+
+        observer.disconnect();
+      },
+      {
+        rootMargin: '400px 0px',
+      },
+    );
+
+    loadObserver.observe(root);
+
+    const themeObserver = new MutationObserver(() => {
+      sendTheme(root);
+    });
+
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+  }
+
+  const commentRoots = document.querySelectorAll<HTMLElement>('[data-comments-root]');
+
+  commentRoots.forEach(setupComments);
+</script>
+
+<style>
+  :global(.giscus),
+  :global(.giscus-frame) {
+    width: 100%;
+  }
+
+  :global(.giscus-frame) {
+    border: 0;
+  }
+</style>

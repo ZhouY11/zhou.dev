@@ -4,6 +4,7 @@ import type { CollectionEntry } from 'astro:content';
 
 import BlogSeriesNavigation from '@/components/blog/BlogSeriesNavigation.astro';
 import BlogTagLink from '@/components/blog/BlogTagLink.astro';
+import Comments from '@/components/blog/Comments.astro';
 import RelatedPosts from '@/components/blog/RelatedPosts.astro';
 
 import { formatDate } from '../lib/date';
@@ -119,5 +120,7 @@ const { series, relatedPosts = [], ogImage, post, olderPost, newerPost } = Astro
     }
 
     <RelatedPosts posts={relatedPosts} />
+
+    {post.data.comments && <Comments />}
   </article>
 </BaseLayout>
