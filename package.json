@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "engines": {
-    "node": ">=24.12.0"
+    "node": "24.x"
   },
   "packageManager": "pnpm@10.27.0",
   "scripts": {
@@ -18,7 +18,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "typecheck": "astro check",
-    "check": "pnpm lint && pnpm format:check && pnpm typecheck",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:node",
     "prepare": "husky"
   },
   "dependencies": {
@@ -49,6 +50,7 @@
     "@commitlint/config-conventional": "^21.2.0",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/typography": "^0.5.20",
+    "@types/node": "^26.2.0",
     "astro-og-canvas": "^0.13.0",
     "canvaskit-wasm": "^0.41.1",
     "eslint": "^10.8.1",

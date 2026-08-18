@@ -84,6 +84,9 @@ importers:
       '@tailwindcss/typography':
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.3)
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
       astro-og-canvas:
         specifier: ^0.13.0
         version: 0.13.0(astro@7.2.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.2.0)(@vercel/functions@3.9.3)(jiti@2.7.0)(yaml@2.9.0))
