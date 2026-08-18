@@ -1,0 +1,5 @@
+{
+  "installCommand": "npm install --global pnpm@10.27.0 && pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build",
+  "outputDirectory": "./dist"
+}
