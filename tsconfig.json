@@ -1,7 +1,7 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"],
+  "include": [".astro/types.d.ts", "src/**/*", "env.d.ts"],
+  "exclude": ["dist", ".vercel", "scripts", "astro.config.mjs"],
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",

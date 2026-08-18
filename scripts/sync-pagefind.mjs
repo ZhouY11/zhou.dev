@@ -6,6 +6,12 @@ const pagefindOutput = resolve('dist/pagefind');
 
 const vercelStaticOutput = resolve('.vercel/output/static');
 
+/**
+ * Check whether a file system path exists.
+ *
+ * @param {string} path
+ * @returns {Promise<boolean>}
+ */
 async function exists(path) {
   try {
     await access(path);
