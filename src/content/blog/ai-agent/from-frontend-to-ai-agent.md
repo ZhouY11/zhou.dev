@@ -2,7 +2,7 @@
 title: 从前端开发到 AI Agent：我的 Agent 工程化学习与实践
 description: 用于记录和实践 AI Agent 工程化、工具调用、上下文管理与应用开发的实验项目。
 publishedAt: 2026-08-19
-updatedAt: 2026-08-19
+updatedAt: 2026-08-20
 tags:
   - AI Agent
   - TypeScript
@@ -504,9 +504,112 @@ Runtime Schema
 
 ---
 
-## Route / Service / Repository
+## Route / Service：先拆开 HTTP 与业务逻辑
 
-随着 Task API 增加，我也开始把后端代码按职责拆开：
+随着 Task API 开始出现，我也开始第一次真正处理后端代码的职责边界。
+
+如果把所有逻辑都直接写在 Route Handler 中，很容易得到这样的代码：
+
+```ts
+app.post('/tasks', async (request, reply) => {
+  // 参数校验
+  // 业务规则
+  // 数据查询
+  // 调用模型
+  // 执行 Tool
+  // 记录 Trace
+  // 构造 Response
+});
+```
+
+现在接口很简单时看不出问题，但未来 FrontOps Agent 会逐渐增加：
+
+```text
+Repository Analysis
+Issue Analysis
+LLM Calling
+Tool Execution
+Agent State
+Persistence
+Tracing
+Approval
+```
+
+如果这些能力全部继续进入 Handler，HTTP 层和 Agent 业务逻辑会迅速耦合。
+
+因此目前我先建立最小的职责划分：
+
+```text
+Route
+  ↓
+Service
+```
+
+Route 负责 HTTP 世界：
+
+```text
+Method
+URL
+Params
+Query
+Headers
+Request Body
+Status Code
+Response
+```
+
+Service 则负责 Application Logic。
+
+例如：
+
+```ts
+export function previewTask(input: TaskPreviewInput): TaskPreviewResult {
+  return {
+    repository: input.repository,
+    question: input.question,
+    mode: input.mode,
+    status: 'ready',
+  };
+}
+```
+
+Service 不接受：
+
+```ts
+FastifyRequest;
+FastifyReply;
+```
+
+也不关心：
+
+```text
+HTTP 200
+HTTP Header
+Cookie
+```
+
+这样做不是为了让目录看起来更加“企业级”，而是为了避免业务逻辑被 HTTP Framework 绑死。
+
+以后同一段 Service 完全可能被：
+
+```text
+HTTP API
+CLI
+Background Worker
+Agent Worker
+```
+
+共同调用。
+
+至于：
+
+```text
+Repository
+```
+
+目前项目还没有真正进入 Persistence，所以暂时没有创建这一层。
+
+后面开始使用 PostgreSQL 后，再根据真实的数据访问需求把：
 
 ```text
 Route
@@ -516,75 +619,881 @@ Service
 Repository
 ```
 
-Route 负责：
+完整建立起来。
 
-```text
-HTTP 输入
-HTTP Status
-Header
-Response
+这也让我进一步确认了一条工程原则：
+
+> abstraction 应该由真实需求推动，而不是为了提前得到一套“标准目录结构”而创建。
+
+---
+
+## 从手写 `safeParse()` 到 Fastify Validation Pipeline
+
+最开始处理 HTTP Body 时，我在 Handler 中显式执行：
+
+```ts
+const parsed = taskPreviewInputSchema.safeParse(request.body);
+
+if (!parsed.success) {
+  return reply.status(400).send({
+    code: 'INVALID_REQUEST',
+  });
+}
+
+const result = previewTask(parsed.data);
 ```
 
-Service 负责：
+这个版本虽然存在重复，但非常适合作为第一阶段实现。
+
+因为整个 Runtime Boundary 是完全可见的：
 
 ```text
-业务规则
-权限判断
-任务状态变化
-Agent 业务流程
+request.body
+     ↓
+untrusted runtime data
+     ↓
+Zod safeParse()
+     ↓
+validated input
+     ↓
+Service
 ```
 
-Repository 负责：
+通过几个故意构造的请求，我分别验证了：
+
+```json
+{
+  "repository": 123
+}
+```
+
+会因为类型不正确被拒绝；
+
+```json
+{
+  "mode": "agent"
+}
+```
+
+会因为不属于允许的 enum 被拒绝；
+
+以及：
+
+```json
+{
+  "repository": "frontend",
+  "question": "Analyze",
+  "mode": "architecture",
+  "admin": true
+}
+```
+
+会因为 Schema 使用了 `.strict()` 而拒绝未声明字段。
+
+这些实验让我第一次真正从 Runtime 层面确认：
+
+> HTTP Contract 不是 TypeScript interface，而是运行时真正执行的 Schema。
+
+不过这个实现也暴露出了明显的问题。
+
+如果未来每一个 Route 都需要：
+
+```ts
+schema.safeParse(request.body);
+```
+
+那么应用会逐渐出现大量重复的 Boundary Code。
+
+而 Fastify 本身已经拥有完整的 Validation Lifecycle。
+
+真正更合理的执行方式应该是：
 
 ```text
-数据存取
+HTTP Request
+     ↓
+Body Parsing
+     ↓
+Runtime Validation
+     ↓
+Handler
+     ↓
+Service
+```
+
+也就是说：
+
+> Validation 应该成为进入 Handler 的前置条件，而不是 Handler 自己记得执行的一项任务。
+
+因此我把 Zod 进一步接入 Fastify Validation Pipeline。
+
+---
+
+## 一个 Zod Schema，同时服务 Runtime 和 TypeScript
+
+完成集成以后，Route 可以直接声明：
+
+```ts
+server.post(
+  '/preview',
+  {
+    schema: {
+      body: taskPreviewInputSchema,
+    },
+  },
+  async (request, reply) => {
+    const result = previewTask(request.body);
+
+    return reply.status(200).send(result);
+  },
+);
+```
+
+原来 Handler 中的：
+
+```ts
+safeParse();
+```
+
+消失了。
+
+但 Runtime Validation 并没有消失。
+
+它只是从：
+
+```text
+Handler
+```
+
+移动到了：
+
+```text
+Fastify Validation Pipeline
+```
+
+现在一次请求的实际过程变成：
+
+```text
+HTTP Request
+     ↓
+Fastify Parsing
+     ↓
+validatorCompiler
+     ↓
+Zod Schema
+     │
+     ├── invalid → 400
+     │
+     └── valid
+            ↓
+         Handler
+            ↓
+         Service
+```
+
+与此同时，TypeScript 还有另一条完全不同的链路：
+
+```text
+Zod Schema
+     ↓
+ZodTypeProvider
+     ↓
+TypeScript inference
+     ↓
+request.body
+```
+
+例如 Schema：
+
+```ts
+const taskPreviewInputSchema = z.object({
+  repository: z.string(),
+  question: z.string(),
+  mode: z.enum(['architecture', 'issue', 'code']),
+});
+```
+
+可以让：
+
+```ts
+request.body.mode;
+```
+
+自动得到：
+
+```ts
+'architecture' | 'issue' | 'code';
+```
+
+这里有一个很容易混淆、但必须明确区分的概念：
+
+```text
+validatorCompiler
+→ Request Runtime Validation
+
+serializerCompiler
+→ Response Runtime Serialization
+
+ZodTypeProvider
+→ Compile-time Type Inference
+```
+
+前两个属于 Runtime。
+
+Type Provider 属于 TypeScript 编译阶段。
+
+它们共同使用 Schema，但解决的是不同的问题。
+
+因此现在的结构可以抽象成：
+
+```text
+                    Zod Schema
+                   /          \
+                  /            \
+                 ▼              ▼
+             Runtime        Compile Time
+                 │              │
+     validatorCompiler    ZodTypeProvider
+     serializerCompiler        │
+                 │              ▼
+                 │        Type Inference
+                 ▼
+          Fastify Runtime
+```
+
+这也是我目前第一次真正体会到 Schema-driven API 的价值：
+
+> Contract 不再只是给开发者看的 TypeScript 类型，而可以同时参与 Runtime Validation、Serialization 和 Static Type Inference。
+
+---
+
+## Structural Validation 不是 Business Validation
+
+Zod 可以证明：
+
+```ts
+repository: z.string();
+```
+
+意味着真实 Runtime Input 中：
+
+```text
+repository
+```
+
+确实是一个字符串。
+
+但它无法证明：
+
+```text
+这个 Repository 真的存在
+```
+
+更无法证明：
+
+```text
+当前用户有权访问这个 Repository
+```
+
+例如：
+
+```json
+{
+  "repository": "repository-that-does-not-exist",
+  "question": "Analyze",
+  "mode": "architecture"
+}
+```
+
+完全可以通过 Zod。
+
+所以目前我开始明确区分三个不同层次：
+
+```text
+Structural Validation
+        ↓
+数据结构是否合法？
+
+Business Validation
+        ↓
+业务事实是否成立？
+
+Authorization
+        ↓
+当前调用者是否有权执行？
 ```
 
 例如：
 
 ```text
-读取 request.body
-→ Route
+mode 必须是 architecture | issue | code
+→ Structural Validation
 
-一个 Project 最多同时运行 3 个 Agent Task
-→ Service
+repository 必须真实存在
+→ Business Validation
 
-INSERT PostgreSQL
-→ Repository
-
-返回 HTTP 201
-→ Route
+当前用户可以访问 repository
+→ Authorization
 ```
 
-这种分层并不是为了模仿某种“企业级架构”。
+这件事情以后进入 Agent Tool Calling 时会变得更加重要。
 
-它真正解决的问题是：
+因为模型生成：
 
-> HTTP、业务逻辑和数据存储不应该因为彼此变化而全部耦合在一起。
+```json
+{
+  "path": "../../etc/passwd"
+}
+```
 
-未来 Repository 会从：
+完全可以满足：
+
+```ts
+path: z.string();
+```
+
+但：
 
 ```text
-Map
+这个 path 是否允许 Tool 访问？
 ```
 
-切换为：
+属于另外一层 Security / Permission Boundary。
+
+因此：
+
+> Runtime Schema Validation 是系统建立信任的第一层，但绝对不是最后一层。
+
+---
+
+## Error 也是 API Contract 的一部分
+
+把 Validation 移到 Fastify Pipeline 后，我马上遇到了新的问题。
+
+以前 Handler 自己执行：
+
+```ts
+safeParse();
+```
+
+时，可以完全控制错误响应：
+
+```json
+{
+  "code": "INVALID_REQUEST",
+  "message": "Request body is invalid"
+}
+```
+
+Validation 移到 Framework Pipeline 后，非法请求会在 Handler 执行以前失败。
+
+于是错误开始由 Fastify 默认 Error Handler 返回。
+
+这意味着虽然 Validation 的职责位置更加合理，但：
+
+> API Error Contract 开始被 Framework 默认行为控制。
+
+因此现在第一次有了真实理由加入统一 Error Handler。
+
+目前 API 已经能够区分：
 
 ```text
-PostgreSQL
+INVALID_REQUEST
+→ Zod Structural Validation Error
+
+REQUEST_ERROR
+→ HTTP / Fastify Request Error
+
+NOT_FOUND
+→ Route 没有匹配
+
+INTERNAL_SERVER_ERROR
+→ Unexpected Server Error
 ```
 
-但 Service 不应该因此重写。
+这里最重要的并不是 Error Code 本身，而是开始建立：
 
-同样，未来 Agent Tool 可能会由普通函数切换成 MCP Tool，核心业务规则也不应该完全跟着变化。
+```text
+Internal Error
+      ↓
+Error Mapping
+      ↓
+Public API Error Contract
+```
+
+的意识。
+
+例如 Fastify 自己可能产生：
+
+```text
+FST_ERR_...
+```
+
+这些 Framework Error Code 更适合进入：
+
+```text
+Server Log
+Trace
+Debugging
+```
+
+而不是直接成为前端长期依赖的 Public API Contract。
+
+否则：
+
+```text
+Frontend
+  ↓
+依赖 Fastify Error Code
+```
+
+就会让外部协议和底层 Framework 强耦合。
+
+---
+
+## Framework Error 不等于 Server Error
+
+这个过程中还有一个很重要的错误分类问题。
+
+最简单的 Error Handler 很容易写成：
+
+```ts
+if (isValidationError(error)) {
+  return reply.status(400).send(...);
+}
+
+return reply.status(500).send(...);
+```
+
+但：
+
+> 不是 Zod Error，并不代表就是 Server Error。
+
+例如一个 malformed JSON：
+
+```json
+{
+  "repository":
+}
+```
+
+请求甚至不会进入 Zod Validation。
+
+它会更早失败：
+
+```text
+HTTP Request
+     ↓
+Body Parsing
+     ↓
+JSON Parsing ❌
+```
+
+这是一个客户端发送了非法 HTTP Payload 的问题，本质应该属于 `4xx`。
+
+如果统一转换成：
+
+```text
+500 Internal Server Error
+```
+
+反而破坏了 HTTP 语义。
+
+所以现在 Error Handler 至少需要能够区分：
+
+```text
+Structural Validation Error
+HTTP / Framework Client Error
+Unexpected Server Error
+```
+
+这也是我第一次真正开始从：
+
+> “发生错误就 catch”
+
+转向：
+
+> “这个错误属于系统中的哪一个 Boundary？”
+
+---
+
+## 404 甚至不经过普通 Error Handler
+
+继续测试：
+
+```text
+GET /does-not-exist
+```
+
+又暴露了另一个 Fastify Lifecycle 细节。
+
+Router 没有找到 Route 时产生的 `404`，并不会像普通 Error 一样经过统一的 `setErrorHandler()`。
+
+它需要单独的：
+
+```ts
+setNotFoundHandler();
+```
+
+于是 Request Pipeline 可以进一步展开：
+
+```text
+Incoming Request
+       │
+       ▼
+     Router
+       │
+   ┌───┴─────┐
+   │         │
+matched   not found
+   │         │
+   ▼         ▼
+Parsing   NOT_FOUND
+   │
+   ▼
+Validation
+   │
+   ▼
+Handler
+```
+
+这让我意识到：
+
+> Error 的来源阶段不同，并不意味着最终都一定经过同一个 Error Hook。
+
+以后 Agent Runtime 也会存在类似差异：
+
+```text
+Route Not Found
+Task Not Found
+Tool Not Found
+Repository Not Found
+```
+
+表面上都叫 “Not Found”，但它们分别属于 HTTP Infrastructure、Application State、Tool Registry 和业务数据层。
+
+---
+
+## Response 也需要自己的 Boundary
+
+完成 Request Validation 后，还有一个容易忽略的问题：
+
+> Service 返回的数据，就应该完整发送给 Client 吗？
+
+不一定。
+
+假设以后 Agent Service 返回：
+
+```ts
+{
+  answer: '...',
+  taskId: 'task-001',
+  internalTraceId: 'trace-001',
+  rawModelResponse: ...,
+  tokenUsage: ...,
+  internalPrompt: ...,
+}
+```
+
+这些数据可能都对 Service 内部有用。
+
+但 Client 真正需要的可能只有：
+
+```json
+{
+  "answer": "...",
+  "taskId": "task-001"
+}
+```
+
+因此：
+
+```text
+Service Result
+      ≠
+Public API Response
+```
+
+我开始为成功 Response 同样定义 Zod Schema：
+
+```ts
+const taskPreviewResponseSchema = z.object({
+  repository: z.string(),
+  question: z.string(),
+  mode: z.enum(['architecture', 'issue', 'code']),
+  status: z.literal('ready'),
+});
+```
+
+然后 Route：
+
+```ts
+server.post(
+  '/preview',
+  {
+    schema: {
+      body: taskPreviewInputSchema,
+      response: {
+        200: taskPreviewResponseSchema,
+      },
+    },
+  },
+  async (request, reply) => {
+    const result = previewTask(request.body);
+
+    return reply.status(200).send(result);
+  },
+);
+```
+
+于是 HTTP 两侧开始形成对称结构：
+
+```text
+Request
+  ↓
+Validation
+  ↓
+Application
+
+Application
+  ↓
+Serialization
+  ↓
+Response
+```
+
+`serializerCompiler` 也终于有了明确职责：
+
+```text
+Service Result
+      ↓
+Response Schema
+      ↓
+serializerCompiler
+      ↓
+Serialized HTTP Response
+```
+
+---
+
+## Response Schema 也是安全边界
+
+为了验证 Response Boundary，我做了一个简单实验：
+
+让 Service 临时多返回：
+
+```ts
+internalNote: 'do not expose this';
+```
+
+但 Response Schema 并没有声明：
+
+```text
+internalNote
+```
+
+最终 HTTP Response 不应该因为 Service 内部对象出现了额外字段，就自动扩大 Public API Contract。
+
+这个实验让我重新理解 Response Schema 的价值。
+
+它不只是：
+
+> “让返回 JSON 格式正确。”
+
+同时也是：
+
+```text
+Data Minimization
+API Contract
+Sensitive Data Leakage Prevention
+```
+
+以后 FrontOps Agent 内部很可能持有：
+
+```text
+System Prompt
+Raw Model Response
+Tool Context
+Trace
+Filesystem Information
+Provider Metadata
+Token Usage
+Secret-related Context
+```
+
+这些都不能因为它们存在于某个 JavaScript Object 中，就默认允许离开 Server Boundary。
+
+所以：
+
+> 输入需要建立信任，输出同样需要控制暴露范围。
+
+---
+
+## 一次真实的 Request Lifecycle 调试
+
+这一阶段还遇到了一个很有代表性的调试问题。
+
+最开始使用 inline `curl` 发送包含中文的 JSON 时，Fastify 返回：
+
+```text
+FST_ERR_CTP_INVALID_CONTENT_LENGTH
+```
+
+错误信息表示：
+
+```text
+Content-Length
+≠
+实际读取到的 Body bytes
+```
+
+一开始很容易把注意力放到：
+
+```text
+Zod Schema
+Route
+Service
+```
+
+但这个 Error 实际发生的位置更早：
+
+```text
+curl
+  ↓
+HTTP
+  ↓
+Fastify Body Parsing ❌
+  ↓
+Zod
+  ↓
+Handler
+```
+
+通过控制变量继续测试：
+
+```text
+payload 文件 + 中文
+→ 成功
+
+inline ASCII
+→ 成功
+
+inline 中文
+→ 失败
+```
+
+最终可以把问题范围收缩到：
+
+```text
+Shell / command-line argument
+→ curl
+```
+
+这一层的 Unicode 数据传递，而不是 Fastify Application。
+
+这个问题本身没有继续深入的必要，但调试过程值得保留。
+
+它让我真正体会到：
+
+> 出现一个 `400` 时，不应该马上去检查业务 Validation，而应该先判断 Error 发生在 Request Lifecycle 的哪一个阶段。
+
+以后 Agent 系统也会出现完全相同的问题。
+
+例如一次失败可能来自：
+
+```text
+HTTP Parsing
+Request Validation
+Authentication
+Authorization
+LLM
+Structured Output
+Tool Validation
+Tool Execution
+Persistence
+```
+
+最终虽然都可能表现为：
+
+```text
+Request Failed
+```
+
+但调试入口完全不同。
+
+---
+
+## 从 HTTP Boundary 提前看到 Agent Boundary
+
+目前整个 HTTP Pipeline 已经可以抽象为：
+
+```text
+External Input
+      ↓
+Structural Validation
+      ↓
+Trusted Application Input
+      ↓
+Application Logic
+      ↓
+Internal Result
+      ↓
+Response Contract
+      ↓
+External Output
+```
+
+这套模型其实已经开始直接映射未来的 Agent Runtime。
+
+HTTP 中：
+
+```text
+Request Body
+   ↓
+Zod
+   ↓
+Service
+```
+
+以后 Tool Calling：
+
+```text
+Model-generated Tool Arguments
+   ↓
+Zod
+   ↓
+Permission / Sandbox
+   ↓
+Tool Executor
+```
+
+因此现在可以提前得到一个非常重要的 Agent Engineering 原则：
+
+> 模型生成的数据和用户发送的 HTTP 数据一样，都属于 Runtime External Input。
+
+即使后面使用 Structured Outputs，也只是增加了模型输出的结构约束。
+
+真正进入 Tool 执行之前，仍然需要继续考虑：
+
+```text
+Runtime Validation
+Authorization
+Permission
+Sandbox
+Timeout
+Approval
+```
+
+也就是说，今天建立的 HTTP Boundary 并不是一个独立的 Fastify 知识点。
+
+它会直接成为后面 Tool Calling、MCP 和 Agent Security 的基础。
 
 ---
 
 ## 当前阶段得到的核心结论
 
-经过最开始的学习，我对 AI Agent 开发的理解已经发生了一点变化。
+经过 Node.js、Fastify 和 Zod 这一阶段，我对 AI Agent 开发的理解又进一步发生了变化。
 
-原本很容易把 Agent 开发想成：
+最开始很容易把 Agent 理解成：
 
 ```text
 Prompt
@@ -594,20 +1503,22 @@ LLM
 几个 Tool
 ```
 
-但真正开始做工程之后，更接近：
+但真正开始搭建运行环境以后，更接近：
 
 ```text
 Frontend
 +
 Backend Runtime
 +
+Boundary Contract
++
 Validation
 +
 State
 +
-Tool
-+
 LLM
++
+Tool
 +
 Persistence
 +
@@ -618,22 +1529,76 @@ Observability
 Eval
 ```
 
-模型只是其中一个非常重要的组件，而不是整个系统。
+目前虽然还没有真正接入模型，但已经建立了几个之后会持续复用的工程原则。
 
-目前我们甚至还没有真正接入模型。
+第一：
 
-但这部分 Node、HTTP、Runtime Validation 和服务生命周期的基础，会直接决定后面 Agent 系统能不能做成一个真正可靠的软件产品。
+> TypeScript 类型只能保护我们控制的代码，任何来自 Runtime Boundary 的数据都需要重新验证。
 
-下一步会继续解决目前代码中故意留下的问题：
+第二：
 
-```ts
-interface CreateTaskBody {
-  title: string;
-}
+> Structural Validation、Business Validation 和 Authorization 是三个不同层次的问题。
+
+第三：
+
+> Route 面向 HTTP Transport，Service 面向 Application Logic，两者不应该因为当前使用 Fastify 就完全耦合。
+
+第四：
+
+> Request 和 Response 都是 Boundary。输入需要验证，输出需要明确控制公开 Contract。
+
+第五：
+
+> Error 同样属于 API Contract。内部 Error、Framework Error 与 Public Error Code 不应该混成一套概念。
+
+现在的 HTTP Boundary 已经可以画成：
+
+```text
+                 Client
+                   │
+                   ▼
+                Routing
+                   │
+          ┌────────┴────────┐
+          │                 │
+       matched          NOT_FOUND
+          │
+          ▼
+        Parsing
+          │
+          ├── error → REQUEST_ERROR
+          ▼
+  Structural Validation
+          │
+          ├── error → INVALID_REQUEST
+          ▼
+        Handler
+          │
+          ▼
+        Service
+          │
+          ▼
+    Response Schema
+          │
+          ▼
+      Serialization
+          │
+          ▼
+        Client
 ```
 
-为什么不能保护真实接口？
+下一步开始进入另一个只返回普通 JSON 很难解决的问题：
 
-以及：
+> 如果一次 LLM / Agent 执行需要持续几秒甚至几十秒，服务是否应该一直等到所有工作完成后，才一次性返回 Response？
 
-> 如何使用 Zod + Fastify 同时获得 Runtime Validation 和 TypeScript 类型安全。
+这会继续把当前的 HTTP Request / Response 模型推进到：
+
+```text
+Streaming
+SSE
+Connection Lifecycle
+Abort
+Cancellation
+```
+
+也会第一次开始为真正接入 LLM API 做准备。
