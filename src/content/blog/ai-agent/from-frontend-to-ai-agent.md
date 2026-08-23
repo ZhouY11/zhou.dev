@@ -408,7 +408,7 @@ Fastify Application
 
 ---
 
-# Fastify Route：HTTP 世界与业务世界的边界
+## Fastify Route：HTTP 世界与业务世界的边界
 
 建立最小服务之后，第二步开始理解 Fastify Route。
 
@@ -1602,3 +1602,222 @@ Cancellation
 ```
 
 也会第一次开始为真正接入 LLM API 做准备。
+
+## Route 不应该承担所有错误处理
+
+Route 容易同时承担：
+
+- HTTP 参数处理
+- 调用外部服务
+- 业务判断
+- 错误转换
+- Response Format
+
+这些职责变化原因不同。
+
+更合理的边界：
+
+    Route
+
+    负责 HTTP Boundary
+
+    ↓
+
+    Service
+
+    负责 Application Logic
+
+Service 不应该直接依赖 FastifyReply。
+
+## Application Error 与 HTTP Error 分离
+
+Business Error 不等于 HTTP Error。
+
+例如：
+
+    REPOSITORY_NOT_FOUND
+
+表示 Application 层的业务语义。
+
+经过 HTTP Boundary 后：
+
+    404 Not Found
+
+才是 HTTP Client 理解的协议表达。
+
+因此：
+
+    Application Error
+
+    ↓
+
+    HTTP Mapping
+
+    ↓
+
+    HTTP Response
+
+而不是：
+
+    Service
+
+    ↓
+
+    reply.status(404)
+
+## AppError 与 Error Code
+
+错误判断不应该依赖 message：
+
+```ts
+error.message === 'Repository not found';
+```
+
+因为文本容易变化。
+
+应该使用稳定 Error Code：
+
+    REPOSITORY_NOT_FOUND
+
+而 message 用于诊断信息。
+
+## Fastify Error Pipeline
+
+Fastify 通过 setErrorHandler 建立统一错误处理边界：
+
+    Request
+
+    ↓
+
+    Validation
+
+    ↓
+
+    Route
+
+    ↓
+
+    Service
+
+    ↓
+
+    Error
+
+    ↓
+
+    Error Handler
+
+    ↓
+
+    HTTP Response
+
+这样 Route 不需要重复编写错误处理逻辑。
+
+## Error 分类
+
+当前阶段主要区分：
+
+### Validation Error
+
+外部输入不符合 Contract。
+
+例如：
+
+    repository id 格式错误
+
+通常返回：
+
+    400
+
+### Application Error
+
+业务逻辑可以明确判断。
+
+例如：
+
+    Repository 不存在
+
+映射：
+
+    REPOSITORY_NOT_FOUND
+
+    ↓
+
+    404
+
+### Unknown Error
+
+系统无法理解业务语义的异常。
+
+不能强行转换为业务错误。
+
+正确方式：
+
+    记录内部错误
+
+    ↓
+
+    返回安全公共错误
+
+## 使用 app.inject 测试 Error Contract
+
+为了验证完整 Fastify 生命周期，不直接调用 errorHandler。
+
+使用：
+
+```ts
+app.inject();
+```
+
+测试：
+
+    Vitest
+
+    ↓
+
+    Fastify Instance
+
+    ↓
+
+    Request Lifecycle
+
+    ↓
+
+    Error Handler
+
+    ↓
+
+    Response Contract
+
+验证的是最终行为，而不是单个函数。
+
+## buildApp 与 listen 分离
+
+应用构建和服务器启动应该分离：
+
+    app.ts
+
+    负责 Application
+
+    ↓
+
+    server.ts
+
+    负责 listen()
+
+这样测试可以创建 Fastify Instance，而不需要真实监听端口。
+
+## 本阶段总结
+
+错误处理不是简单增加更多 try/catch。
+
+更重要的是建立职责边界：
+
+- Route 管理 HTTP Boundary。
+- Service 表达业务逻辑。
+- AppError 表达稳定错误语义。
+- Error Handler 转换 Public Contract。
+- Vitest 验证行为不会被破坏。
+
+这些 Backend Engineering 基础，也是未来构建 Agent Runtime
+时需要继续扩展的能力。
