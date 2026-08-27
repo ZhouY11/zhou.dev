@@ -2,7 +2,7 @@
 title: 从前端开发到 AI Agent：我的 Agent 工程化学习与实践
 description: 用于记录和实践 AI Agent 工程化、工具调用、上下文管理与应用开发的实验项目。
 publishedAt: 2026-08-19
-updatedAt: 2026-08-20
+updatedAt: 2026-08-25
 tags:
   - AI Agent
   - TypeScript
@@ -1807,17 +1807,1105 @@ app.inject();
 
 这样测试可以创建 Fastify Instance，而不需要真实监听端口。
 
-## 本阶段总结
+## 把 FrontOps Agent 的数据从内存搬进 PostgreSQL
 
-错误处理不是简单增加更多 try/catch。
+我已经完成了 Fastify、Zod、Route / Service / Repository 分层以及测试体系的基础搭建。
 
-更重要的是建立职责边界：
+问题第一次从：
 
-- Route 管理 HTTP Boundary。
-- Service 表达业务逻辑。
-- AppError 表达稳定错误语义。
-- Error Handler 转换 Public Contract。
-- Vitest 验证行为不会被破坏。
+```text
+“Backend 能不能接住一个请求”
+```
 
-这些 Backend Engineering 基础，也是未来构建 Agent Runtime
-时需要继续扩展的能力。
+变成：
+
+```text
+“这些数据到底应该如何被可靠地持久化”
+```
+
+这也是我从前端工程思维切换到后端工程思维时，一个非常明显的节点。
+
+对于前端开发来说，很多状态天然存在于：
+
+```text
+Component State
+Pinia / Vuex
+Browser Storage
+Remote API Cache
+```
+
+但进入后端以后，真正需要长期保存、支持并发访问、保证一致性的数据，必须交给数据库。
+
+这一次我正式把 FrontOps Agent 的项目数据接入 PostgreSQL。
+
+---
+
+### 1. 为什么不能一直使用内存数据
+
+最开始为了验证 Route / Service / Repository 的调用链，Repository 完全可以使用内存数组：
+
+```ts
+const projects: Project[] = [];
+```
+
+这种实现的价值是：
+
+```text
+快速验证架构
++
+没有数据库依赖
++
+测试简单
+```
+
+但它无法承担真实系统的数据存储职责。
+
+只要 Node.js Process 重启：
+
+```text
+Process Exit
+    ↓
+Memory Lost
+    ↓
+Projects Lost
+```
+
+同时，多进程、多实例部署以后，每个实例都有自己的内存：
+
+```text
+API Instance A
+→ projects A
+
+API Instance B
+→ projects B
+```
+
+两份状态彼此不一致。
+
+因此 PostgreSQL 在 FrontOps Agent 中承担的是：
+
+> Persistent Source of Truth。
+
+这和 Vue State 完全不是同一个角色。
+
+可以这样映射：
+
+```text
+Vue State
+→ 当前 Client Runtime State
+
+PostgreSQL
+→ Server Persistent State
+```
+
+---
+
+### 2. PostgreSQL Client 和 Connection Pool
+
+第一次接 PostgreSQL 时，一个很容易写出的实现是：
+
+```ts
+const client = new Client({
+  connectionString,
+})
+
+await client.connect()
+
+const result = await client.query(...)
+```
+
+这在一次性脚本中完全合理。
+
+但对于长期运行的 API Server：
+
+```text
+Request
+Request
+Request
+Request
+...
+```
+
+数据库连接本身是一种有限资源。
+
+如果每个 Request：
+
+```text
+new Client()
+→ connect()
+→ query()
+→ close()
+```
+
+不仅增加连接建立成本，也容易在高并发下耗尽数据库的连接资源。
+
+因此 Web Server 更常见的方式是：
+
+```ts
+const pool = new Pool(...)
+```
+
+然后：
+
+```text
+Application Startup
+      ↓
+Create Pool
+      ↓
+Request 1
+Request 2
+Request 3
+      ↓
+Reuse Connections
+```
+
+这里我第一次把数据库连接池和以前理解 TCP / Browser Connection Reuse 的经验建立了映射：
+
+> 连接不是无限资源，没有必要每个操作重新创建。
+
+---
+
+### 3. `Pool`、`Client`、`release()`、`end()` 不是同一个生命周期
+
+我特别容易混淆的是：
+
+```ts
+pool.query(...)
+pool.connect()
+client.release()
+pool.end()
+```
+
+它们看起来都在操作数据库连接，但语义不同。
+
+#### `pool.query()`
+
+适合：
+
+> 单条独立 Query。
+
+例如：
+
+```ts
+await pool.query('SELECT * FROM projects WHERE id = $1', [id]);
+```
+
+Pool 会自动帮我：
+
+```text
+获取 Client
+→ 执行 Query
+→ 归还 Client
+```
+
+因此调用方不需要手动 `release()`。
+
+---
+
+#### `pool.connect()`
+
+当多个 SQL 操作必须使用 **同一个 Connection** 时，需要显式拿到 Client：
+
+```ts
+const client = await pool.connect();
+
+try {
+  // ...
+} finally {
+  client.release();
+}
+```
+
+典型场景是 Transaction：
+
+```text
+BEGIN
+ ↓
+Query A
+ ↓
+Query B
+ ↓
+COMMIT / ROLLBACK
+```
+
+这些操作不能分别随机落到 Pool 中不同 Client 上。
+
+因此：
+
+```text
+pool.query()
+→ 独立 Query
+
+pool.connect()
+→ 显式获取同一 Client
+```
+
+是两个不同使用场景。
+
+---
+
+#### `client.release()`
+
+`release()` 表示：
+
+> 当前代码不再占用这个 Client，把连接归还 Pool。
+
+它不是：
+
+```text
+关闭整个数据库系统
+```
+
+而是：
+
+```text
+Borrowed Connection
+      ↓
+release()
+      ↓
+Return To Pool
+```
+
+---
+
+#### `pool.end()`
+
+`pool.end()` 的语义则完全不同：
+
+> 关闭整个 Pool，并结束数据库连接资源。
+
+所以一般发生在：
+
+```text
+Application Shutdown
+Test Teardown
+Script Completion
+```
+
+而不是每个 Request 执行之后。
+
+这套生命周期管理让我意识到：
+
+> Backend Resource Lifecycle 必须明确区分 Application Scope、Request Scope 和 Operation Scope。
+
+这个原则后面同样会继续出现在 LLM Client、Agent Task、Tool Execution 等系统里。
+
+---
+
+### 4. 为什么 Repository 应该负责 SQL
+
+数据库接入以后，我仍然保持：
+
+```text
+Route
+→ Service
+→ Repository
+```
+
+Repository 开始真正承担：
+
+```text
+SQL
+Database Mapping
+Persistence
+```
+
+例如：
+
+```ts
+export class ProjectRepository {
+  constructor(private readonly pool: Pool) {}
+
+  async create(input: CreateProjectInput) {
+    const result = await this.pool.query(
+      `
+        INSERT INTO projects (
+          name,
+          repository_url
+        )
+        VALUES ($1, $2)
+        RETURNING
+          id,
+          name,
+          repository_url,
+          created_at
+      `,
+      [input.name, input.repositoryUrl],
+    );
+
+    return result.rows[0];
+  }
+}
+```
+
+我不希望 Route 里出现：
+
+```ts
+await pool.query(...)
+```
+
+也不希望 Service 到处直接写 SQL。
+
+因为：
+
+```text
+Route
+→ HTTP Boundary
+
+Service
+→ Business Logic
+
+Repository
+→ Persistence Boundary
+```
+
+这三个职责仍然需要分开。
+
+但这里也不能机械分层。
+
+如果一个 Feature 当前只有非常简单的数据操作，不应该为了“企业架构感”继续创建：
+
+```text
+DAO
+Mapper
+Gateway
+StorageService
+RepositoryImpl
+```
+
+每一个 abstraction 都必须解决一个真实问题。
+
+---
+
+### 5. SQL 参数必须参数化
+
+数据库接入之后，第一个非常重要的安全习惯就是：
+
+不要这样：
+
+```ts
+const sql = `
+  SELECT *
+  FROM projects
+  WHERE name = '${name}'
+`;
+```
+
+而应该：
+
+```ts
+await pool.query(
+  `
+    SELECT *
+    FROM projects
+    WHERE name = $1
+  `,
+  [name],
+);
+```
+
+参数化 Query 的核心价值不是“代码更整洁”，而是：
+
+> 把 SQL Structure 和 User Data 分开。
+
+应用传入的数据不会直接成为 SQL 语句结构的一部分。
+
+这一点和前端时代常见的：
+
+```text
+HTML String Concatenation
+vs
+Framework Escaping / Binding
+```
+
+有类似的安全思维：
+
+> 不要让外部数据直接进入可执行结构。
+
+---
+
+### 6. 数据库 Schema 是 Runtime Contract 的另一层
+
+第一周前面已经建立：
+
+```text
+HTTP Input
+   ↓
+Zod Validation
+```
+
+接入 PostgreSQL 后又多了一层：
+
+```text
+Application Data
+   ↓
+Database Constraints
+```
+
+例如：
+
+```sql
+CREATE TABLE projects (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  repository_url TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+这里的：
+
+```text
+PRIMARY KEY
+NOT NULL
+DEFAULT
+```
+
+并不是可以被 TypeScript 替代的。
+
+即使代码里有：
+
+```ts
+type Project = {
+  id: number;
+  name: string;
+};
+```
+
+数据库本身仍然必须保证：
+
+```text
+id 唯一
+name 不能为空
+```
+
+因为数据库不只会被某一个 TypeScript function 使用。
+
+未来可能还有：
+
+```text
+Migration
+Background Job
+Admin Script
+Other Service
+Manual SQL
+```
+
+都会直接操作它。
+
+因此：
+
+> Database Constraint 是 Data Source 自己的最后一道 Runtime Contract。
+
+---
+
+### 7. 为什么 `PRIMARY KEY` 应该由数据库保证
+
+我确认了一个非常重要的原则：
+
+```text
+Entity Identity
+```
+
+不能只依赖 Application “自己记得不重复”。
+
+例如：
+
+```sql
+id BIGSERIAL PRIMARY KEY
+```
+
+数据库可以保证：
+
+```text
+唯一性
++
+非空
++
+索引语义
+```
+
+如果只是 Application 里：
+
+```ts
+const id = projects.length + 1;
+```
+
+那在并发、多实例环境里根本无法可靠成立。
+
+因此这种全局数据一致性约束：
+
+> 应该尽可能靠近真正的数据源。
+
+---
+
+### 8. `created_at` 为什么由数据库生成
+
+`created_at` 这种字段同样适合：
+
+```sql
+created_at TIMESTAMPTZ
+  NOT NULL
+  DEFAULT NOW()
+```
+
+而不是每个调用方都：
+
+```ts
+createdAt: new Date();
+```
+
+原因是：
+
+```text
+created_at
+```
+
+描述的是：
+
+> 这一行数据进入数据库时的创建时间。
+
+让数据库负责：
+
+```text
+统一
+可靠
+避免调用方遗漏
+```
+
+更加合理。
+
+Application 不需要每次创建项目都记住：
+
+```text
+还要生成 createdAt
+```
+
+---
+
+### 9. 为什么选择 `TIMESTAMPTZ`
+
+对于 Backend 持久化时间，我使用：
+
+```sql
+TIMESTAMPTZ
+```
+
+而不是只保存一个没有时区语义的 timestamp。
+
+工程上的考虑不是：
+
+> “数据库里显示哪个时区更漂亮。”
+
+而是希望保存的是一个明确时间点。
+
+不同使用者最终可以根据：
+
+```text
+UTC
+User Locale
+Server Locale
+```
+
+转换展示。
+
+这和前端国际化中的时间处理很接近：
+
+```text
+Persist absolute instant
+        ↓
+Presentation layer
+        ↓
+Local timezone formatting
+```
+
+不要把最终展示时区和底层持久化语义混在一起。
+
+---
+
+### 10. 数据库命名和 TypeScript 命名不必强行统一
+
+数据库常见：
+
+```text
+snake_case
+```
+
+TypeScript 常见：
+
+```text
+camelCase
+```
+
+例如：
+
+```sql
+repository_url
+created_at
+```
+
+而 Application 使用：
+
+```ts
+repositoryUrl;
+createdAt;
+```
+
+这两个世界不需要为了所谓统一而强迫其中一边改变。
+
+Repository Boundary 正好可以负责转换：
+
+```text
+Database Row
+repository_url
+created_at
+       ↓
+Repository Mapping
+       ↓
+Application Object
+repositoryUrl
+createdAt
+```
+
+这也是 Repository 存在的另一个实际价值：
+
+> 隔离 persistence representation 和 application representation。
+
+---
+
+### 11. `UNIQUE` 不是所有字段默认都应该加
+
+学习表结构设计时，一个很容易出现的倾向是：
+
+```text
+既然唯一性很好，
+那 name、URL 都加 UNIQUE。
+```
+
+但 `UNIQUE` 实际是业务规则。
+
+例如：
+
+```sql
+repository_url TEXT UNIQUE
+```
+
+到底对不对，要先回答：
+
+```text
+一个 Repository 是否只允许创建一个 Project？
+
+是否允许不同 Workspace 导入同一个 Repository？
+
+同一 Repo 是否可能有不同 Branch / Configuration？
+```
+
+如果业务规则没有确定，就不能因为“看起来应该唯一”直接写约束。
+
+所以：
+
+> Database Constraint 必须有业务语义依据。
+
+`PRIMARY KEY` 是 Entity Identity 的基础约束。
+
+而普通字段上的：
+
+```text
+UNIQUE
+CHECK
+FOREIGN KEY
+```
+
+则需要结合具体业务规则设计。
+
+---
+
+### 12. Application Validation 和 Database Validation 为什么都需要
+
+这是一个非常重要的边界问题。
+
+例如：
+
+```text
+Project Name 不能为空
+```
+
+Application 可以：
+
+```ts
+z.string().trim().min(1);
+```
+
+数据库也可以：
+
+```sql
+name TEXT NOT NULL
+```
+
+这不是重复浪费。
+
+它们服务的是不同边界。
+
+#### Application Validation
+
+解决：
+
+```text
+HTTP Client
+   ↓
+Invalid Input
+   ↓
+尽早给出明确业务错误
+```
+
+目标是：
+
+```text
+开发体验
+API Contract
+业务语义
+```
+
+#### Database Constraint
+
+解决：
+
+```text
+任何数据库写入路径
+      ↓
+最终数据一致性
+```
+
+目标是：
+
+```text
+Persistence Integrity
+```
+
+所以：
+
+```text
+Application Validation
++
+Database Validation
+```
+
+不是二选一。
+
+---
+
+### 13. Repository Test 和真实数据库测试的边界
+
+接入 PostgreSQL 后，我也开始重新理解测试分层。
+
+Service Unit Test 不应该因为 Repository 换成 PostgreSQL 就突然需要数据库。
+
+例如：
+
+```text
+ProjectService
+      ↓
+Fake ProjectRepository
+```
+
+仍然应该能够快速、deterministic 地测试业务逻辑。
+
+而真正 SQL 是否正确：
+
+```text
+INSERT
+SELECT
+RETURNING
+column mapping
+constraint
+```
+
+则需要更接近数据库的 integration test。
+
+因此：
+
+```text
+Service Unit Test
+→ Fake Repository
+
+Repository / Integration Test
+→ Real PostgreSQL
+```
+
+它们证明的是不同问题。
+
+这和后面 LLM Testing 的：
+
+```text
+Service Unit Test
+→ Fake LLM
+
+Provider Smoke Test
+→ Real Model
+```
+
+其实是同一种 Testing Boundary 思维。
+
+---
+
+### 14. 为什么测试结束必须释放资源
+
+数据库测试还有一个前端时代不太常见的问题：
+
+```text
+Open Handle
+```
+
+如果测试创建了 Pool，却没有：
+
+```ts
+await pool.end();
+```
+
+Vitest 可能执行完 assertion 之后仍然无法正常退出。
+
+原因不是 Vitest 出问题，而是 Node.js Event Loop 中仍然存在活跃资源。
+
+因此测试需要明确：
+
+```ts
+afterAll(async () => {
+  await pool.end();
+});
+```
+
+或者按照实际测试生命周期使用：
+
+```ts
+afterEach(...)
+```
+
+这个问题让我进一步理解：
+
+> Backend Test 不只验证返回值，还必须管理真实 Resource Lifecycle。
+
+---
+
+### 15. FrontOps Agent 为什么需要 PostgreSQL
+
+目前 PostgreSQL 只保存 Project 这类基础数据。
+
+但 FrontOps Agent 最终还会需要持久化：
+
+```text
+Projects
+
+Imported Repositories
+
+Agent Tasks
+
+Task Status
+
+Human Approval State
+
+Tool Timeline
+
+Trace Metadata
+
+Eval Results
+
+Cost / Token / Latency Data
+```
+
+因此 PostgreSQL 并不是“为了学 Backend 顺手加一个数据库”。
+
+它最终会成为整个 Agent Platform 的持久状态基础。
+
+后续还会继续扩展：
+
+```text
+PostgreSQL
+    ↓
+pgvector
+    ↓
+Vector Retrieval
+```
+
+但当前阶段还没有必要提前学习这些内容。
+
+---
+
+### 16. 从前端状态管理映射到后端持久化
+
+对我最有帮助的一个映射是：
+
+```text
+Vue State
+≠
+Server State
+≠
+Persistent State
+```
+
+前端：
+
+```text
+ref()
+reactive()
+Pinia
+```
+
+解决的是当前 Client Runtime 中：
+
+```text
+UI 如何随着状态变化
+```
+
+而 PostgreSQL 解决的是：
+
+```text
+数据如何跨 Request
+跨 Process
+跨 Deployment
+长期存在
+```
+
+以前前端调用：
+
+```ts
+await api.createProject(...)
+```
+
+我更多关注：
+
+```text
+loading
+error
+cache invalidation
+UI update
+```
+
+现在站在 Backend 侧，需要继续考虑：
+
+```text
+Connection
+Query
+Constraint
+Transaction
+Persistence
+Resource Lifecycle
+```
+
+这是从“消费 API”到“实现可靠数据系统”的明显视角变化。
+
+---
+
+### 17. 最终形成的数据链
+
+完成 PostgreSQL 接入后，FrontOps Agent 第一周的 Backend 数据流已经形成：
+
+```text
+Client
+  ↓
+Fastify Route
+  ↓
+Runtime Validation
+  ↓
+Service
+  ↓
+Repository
+  ↓
+Parameterized SQL
+  ↓
+PostgreSQL
+  ↓
+Database Constraints
+```
+
+反向：
+
+```text
+PostgreSQL Row
+     ↓
+Repository Mapping
+     ↓
+Application Object
+     ↓
+Service
+     ↓
+Response Serialization
+     ↓
+Client
+```
+
+到这里，我已经不再只是：
+
+> “会用 Node.js 写接口。”
+
+而开始真正接触 Backend Engineering 的几个核心问题：
+
+```text
+Persistence
+Resource Lifecycle
+Data Integrity
+Boundary Mapping
+Testing
+```
+
+---
+
+### 18. 当前阶段的工程结论
+
+这一轮结束后，我认为最值得长期保留的是下面这些结论：
+
+1. 内存 Repository 适合验证架构，但不能承担真实持久化。
+2. Database Connection 是有限资源，需要明确生命周期和复用。
+3. `pool.query()` 适合独立 Query；Transaction 等场景需要显式 Client。
+4. `client.release()` 是归还连接，`pool.end()` 是关闭整个 Pool。
+5. Route / Service 不应该直接承载 SQL。
+6. SQL 必须使用参数化 Query，而不是字符串拼接外部输入。
+7. TypeScript Type 不能替代 Database Constraint。
+8. `PRIMARY KEY`、`NOT NULL`、`DEFAULT` 等数据完整性约束应由数据库自己保证。
+9. `created_at` 这类数据库事实优先由数据库生成。
+10. 时间持久化应尽量保留明确的时间点语义，再在展示层做 timezone conversion。
+11. Database `snake_case` 和 TypeScript `camelCase` 可以在 Repository Boundary 做映射。
+12. `UNIQUE` 属于业务约束，不能为了“数据库设计完整”随意添加。
+13. Application Validation 和 Database Validation 解决的是不同边界问题，两者都需要。
+14. Service Unit Test 应隔离数据库；真实 SQL 行为通过 Integration Test 验证。
+15. Backend Test 必须显式处理资源生命周期，避免残留连接阻塞 Node.js Process。
+
+第一周到这里，我已经完成了从：
+
+```text
+Frontend Engineer
+    ↓
+能消费 Backend API
+```
+
+到：
+
+```text
+能够构建基础 Backend Runtime
++
+能够设计 Persistence Boundary
+```
+
+的第一轮转变。
+
+而这套数据库与 Runtime Boundary 思维，后续也会直接迁移到 Agent 系统：
+
+```text
+Database Input
+→ Runtime Validation
+
+Model Output
+→ Runtime Validation
+
+DB Connection Lifecycle
+→ Infrastructure Lifecycle
+
+Repository Boundary
+→ Tool / Provider Boundary
+
+CI Regression
+→ Agent Eval Regression
+```
+
+也就是说，第一周这些看起来还没有“AI 味”的 Backend 基础，并不是 Agent 学习之前的绕路。
+
+它们本身就是构建 Production Agent Runtime 所需要的工程地基。
