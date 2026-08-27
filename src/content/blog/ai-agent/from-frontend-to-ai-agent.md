@@ -2,7 +2,7 @@
 title: 从前端开发到 AI Agent：我的 Agent 工程化学习与实践
 description: 用于记录和实践 AI Agent 工程化、工具调用、上下文管理与应用开发的实验项目。
 publishedAt: 2026-08-19
-updatedAt: 2026-08-20
+updatedAt: 2026-08-25
 tags:
   - AI Agent
   - TypeScript
@@ -1807,17 +1807,1719 @@ app.inject();
 
 这样测试可以创建 Fastify Instance，而不需要真实监听端口。
 
-## 本阶段总结
+## 把 FrontOps Agent 的数据从内存搬进 PostgreSQL
 
-错误处理不是简单增加更多 try/catch。
+我已经完成了 Fastify、Zod、Route / Service / Repository 分层以及测试体系的基础搭建。
 
-更重要的是建立职责边界：
+问题第一次从：
 
-- Route 管理 HTTP Boundary。
-- Service 表达业务逻辑。
-- AppError 表达稳定错误语义。
-- Error Handler 转换 Public Contract。
-- Vitest 验证行为不会被破坏。
+```text
+“Backend 能不能接住一个请求”
+```
 
-这些 Backend Engineering 基础，也是未来构建 Agent Runtime
-时需要继续扩展的能力。
+变成：
+
+```text
+“这些数据到底应该如何被可靠地持久化”
+```
+
+这也是我从前端工程思维切换到后端工程思维时，一个非常明显的节点。
+
+对于前端开发来说，很多状态天然存在于：
+
+```text
+Component State
+Pinia / Vuex
+Browser Storage
+Remote API Cache
+```
+
+但进入后端以后，真正需要长期保存、支持并发访问、保证一致性的数据，必须交给数据库。
+
+这一次我正式把 FrontOps Agent 的项目数据接入 PostgreSQL。
+
+---
+
+### 1. 为什么不能一直使用内存数据
+
+最开始为了验证 Route / Service / Repository 的调用链，Repository 完全可以使用内存数组：
+
+```ts
+const projects: Project[] = [];
+```
+
+这种实现的价值是：
+
+```text
+快速验证架构
++
+没有数据库依赖
++
+测试简单
+```
+
+但它无法承担真实系统的数据存储职责。
+
+只要 Node.js Process 重启：
+
+```text
+Process Exit
+    ↓
+Memory Lost
+    ↓
+Projects Lost
+```
+
+同时，多进程、多实例部署以后，每个实例都有自己的内存：
+
+```text
+API Instance A
+→ projects A
+
+API Instance B
+→ projects B
+```
+
+两份状态彼此不一致。
+
+因此 PostgreSQL 在 FrontOps Agent 中承担的是：
+
+> Persistent Source of Truth。
+
+这和 Vue State 完全不是同一个角色。
+
+可以这样映射：
+
+```text
+Vue State
+→ 当前 Client Runtime State
+
+PostgreSQL
+→ Server Persistent State
+```
+
+---
+
+### 2. PostgreSQL Client 和 Connection Pool
+
+第一次接 PostgreSQL 时，一个很容易写出的实现是：
+
+```ts
+const client = new Client({
+  connectionString,
+})
+
+await client.connect()
+
+const result = await client.query(...)
+```
+
+这在一次性脚本中完全合理。
+
+但对于长期运行的 API Server：
+
+```text
+Request
+Request
+Request
+Request
+...
+```
+
+数据库连接本身是一种有限资源。
+
+如果每个 Request：
+
+```text
+new Client()
+→ connect()
+→ query()
+→ close()
+```
+
+不仅增加连接建立成本，也容易在高并发下耗尽数据库的连接资源。
+
+因此 Web Server 更常见的方式是：
+
+```ts
+const pool = new Pool(...)
+```
+
+然后：
+
+```text
+Application Startup
+      ↓
+Create Pool
+      ↓
+Request 1
+Request 2
+Request 3
+      ↓
+Reuse Connections
+```
+
+这里我第一次把数据库连接池和以前理解 TCP / Browser Connection Reuse 的经验建立了映射：
+
+> 连接不是无限资源，没有必要每个操作重新创建。
+
+---
+
+### 3. `Pool`、`Client`、`release()`、`end()` 不是同一个生命周期
+
+我特别容易混淆的是：
+
+```ts
+pool.query(...)
+pool.connect()
+client.release()
+pool.end()
+```
+
+它们看起来都在操作数据库连接，但语义不同。
+
+#### `pool.query()`
+
+适合：
+
+> 单条独立 Query。
+
+例如：
+
+```ts
+await pool.query('SELECT * FROM projects WHERE id = $1', [id]);
+```
+
+Pool 会自动帮我：
+
+```text
+获取 Client
+→ 执行 Query
+→ 归还 Client
+```
+
+因此调用方不需要手动 `release()`。
+
+---
+
+#### `pool.connect()`
+
+当多个 SQL 操作必须使用 **同一个 Connection** 时，需要显式拿到 Client：
+
+```ts
+const client = await pool.connect();
+
+try {
+  // ...
+} finally {
+  client.release();
+}
+```
+
+典型场景是 Transaction：
+
+```text
+BEGIN
+ ↓
+Query A
+ ↓
+Query B
+ ↓
+COMMIT / ROLLBACK
+```
+
+这些操作不能分别随机落到 Pool 中不同 Client 上。
+
+因此：
+
+```text
+pool.query()
+→ 独立 Query
+
+pool.connect()
+→ 显式获取同一 Client
+```
+
+是两个不同使用场景。
+
+---
+
+#### `client.release()`
+
+`release()` 表示：
+
+> 当前代码不再占用这个 Client，把连接归还 Pool。
+
+它不是：
+
+```text
+关闭整个数据库系统
+```
+
+而是：
+
+```text
+Borrowed Connection
+      ↓
+release()
+      ↓
+Return To Pool
+```
+
+---
+
+#### `pool.end()`
+
+`pool.end()` 的语义则完全不同：
+
+> 关闭整个 Pool，并结束数据库连接资源。
+
+所以一般发生在：
+
+```text
+Application Shutdown
+Test Teardown
+Script Completion
+```
+
+而不是每个 Request 执行之后。
+
+这套生命周期管理让我意识到：
+
+> Backend Resource Lifecycle 必须明确区分 Application Scope、Request Scope 和 Operation Scope。
+
+这个原则后面同样会继续出现在 LLM Client、Agent Task、Tool Execution 等系统里。
+
+---
+
+### 4. 为什么 Repository 应该负责 SQL
+
+数据库接入以后，我仍然保持：
+
+```text
+Route
+→ Service
+→ Repository
+```
+
+Repository 开始真正承担：
+
+```text
+SQL
+Database Mapping
+Persistence
+```
+
+例如：
+
+```ts
+export class ProjectRepository {
+  constructor(private readonly pool: Pool) {}
+
+  async create(input: CreateProjectInput) {
+    const result = await this.pool.query(
+      `
+        INSERT INTO projects (
+          name,
+          repository_url
+        )
+        VALUES ($1, $2)
+        RETURNING
+          id,
+          name,
+          repository_url,
+          created_at
+      `,
+      [input.name, input.repositoryUrl],
+    );
+
+    return result.rows[0];
+  }
+}
+```
+
+我不希望 Route 里出现：
+
+```ts
+await pool.query(...)
+```
+
+也不希望 Service 到处直接写 SQL。
+
+因为：
+
+```text
+Route
+→ HTTP Boundary
+
+Service
+→ Business Logic
+
+Repository
+→ Persistence Boundary
+```
+
+这三个职责仍然需要分开。
+
+但这里也不能机械分层。
+
+如果一个 Feature 当前只有非常简单的数据操作，不应该为了“企业架构感”继续创建：
+
+```text
+DAO
+Mapper
+Gateway
+StorageService
+RepositoryImpl
+```
+
+每一个 abstraction 都必须解决一个真实问题。
+
+---
+
+### 5. SQL 参数必须参数化
+
+数据库接入之后，第一个非常重要的安全习惯就是：
+
+不要这样：
+
+```ts
+const sql = `
+  SELECT *
+  FROM projects
+  WHERE name = '${name}'
+`;
+```
+
+而应该：
+
+```ts
+await pool.query(
+  `
+    SELECT *
+    FROM projects
+    WHERE name = $1
+  `,
+  [name],
+);
+```
+
+参数化 Query 的核心价值不是“代码更整洁”，而是：
+
+> 把 SQL Structure 和 User Data 分开。
+
+应用传入的数据不会直接成为 SQL 语句结构的一部分。
+
+这一点和前端时代常见的：
+
+```text
+HTML String Concatenation
+vs
+Framework Escaping / Binding
+```
+
+有类似的安全思维：
+
+> 不要让外部数据直接进入可执行结构。
+
+---
+
+### 6. 数据库 Schema 是 Runtime Contract 的另一层
+
+第一周前面已经建立：
+
+```text
+HTTP Input
+   ↓
+Zod Validation
+```
+
+接入 PostgreSQL 后又多了一层：
+
+```text
+Application Data
+   ↓
+Database Constraints
+```
+
+例如：
+
+```sql
+CREATE TABLE projects (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  repository_url TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+这里的：
+
+```text
+PRIMARY KEY
+NOT NULL
+DEFAULT
+```
+
+并不是可以被 TypeScript 替代的。
+
+即使代码里有：
+
+```ts
+type Project = {
+  id: number;
+  name: string;
+};
+```
+
+数据库本身仍然必须保证：
+
+```text
+id 唯一
+name 不能为空
+```
+
+因为数据库不只会被某一个 TypeScript function 使用。
+
+未来可能还有：
+
+```text
+Migration
+Background Job
+Admin Script
+Other Service
+Manual SQL
+```
+
+都会直接操作它。
+
+因此：
+
+> Database Constraint 是 Data Source 自己的最后一道 Runtime Contract。
+
+---
+
+### 7. 为什么 `PRIMARY KEY` 应该由数据库保证
+
+我确认了一个非常重要的原则：
+
+```text
+Entity Identity
+```
+
+不能只依赖 Application “自己记得不重复”。
+
+例如：
+
+```sql
+id BIGSERIAL PRIMARY KEY
+```
+
+数据库可以保证：
+
+```text
+唯一性
++
+非空
++
+索引语义
+```
+
+如果只是 Application 里：
+
+```ts
+const id = projects.length + 1;
+```
+
+那在并发、多实例环境里根本无法可靠成立。
+
+因此这种全局数据一致性约束：
+
+> 应该尽可能靠近真正的数据源。
+
+---
+
+### 8. `created_at` 为什么由数据库生成
+
+`created_at` 这种字段同样适合：
+
+```sql
+created_at TIMESTAMPTZ
+  NOT NULL
+  DEFAULT NOW()
+```
+
+而不是每个调用方都：
+
+```ts
+createdAt: new Date();
+```
+
+原因是：
+
+```text
+created_at
+```
+
+描述的是：
+
+> 这一行数据进入数据库时的创建时间。
+
+让数据库负责：
+
+```text
+统一
+可靠
+避免调用方遗漏
+```
+
+更加合理。
+
+Application 不需要每次创建项目都记住：
+
+```text
+还要生成 createdAt
+```
+
+---
+
+### 9. 为什么选择 `TIMESTAMPTZ`
+
+对于 Backend 持久化时间，我使用：
+
+```sql
+TIMESTAMPTZ
+```
+
+而不是只保存一个没有时区语义的 timestamp。
+
+工程上的考虑不是：
+
+> “数据库里显示哪个时区更漂亮。”
+
+而是希望保存的是一个明确时间点。
+
+不同使用者最终可以根据：
+
+```text
+UTC
+User Locale
+Server Locale
+```
+
+转换展示。
+
+这和前端国际化中的时间处理很接近：
+
+```text
+Persist absolute instant
+        ↓
+Presentation layer
+        ↓
+Local timezone formatting
+```
+
+不要把最终展示时区和底层持久化语义混在一起。
+
+---
+
+### 10. 数据库命名和 TypeScript 命名不必强行统一
+
+数据库常见：
+
+```text
+snake_case
+```
+
+TypeScript 常见：
+
+```text
+camelCase
+```
+
+例如：
+
+```sql
+repository_url
+created_at
+```
+
+而 Application 使用：
+
+```ts
+repositoryUrl;
+createdAt;
+```
+
+这两个世界不需要为了所谓统一而强迫其中一边改变。
+
+Repository Boundary 正好可以负责转换：
+
+```text
+Database Row
+repository_url
+created_at
+       ↓
+Repository Mapping
+       ↓
+Application Object
+repositoryUrl
+createdAt
+```
+
+这也是 Repository 存在的另一个实际价值：
+
+> 隔离 persistence representation 和 application representation。
+
+---
+
+### 11. `UNIQUE` 不是所有字段默认都应该加
+
+学习表结构设计时，一个很容易出现的倾向是：
+
+```text
+既然唯一性很好，
+那 name、URL 都加 UNIQUE。
+```
+
+但 `UNIQUE` 实际是业务规则。
+
+例如：
+
+```sql
+repository_url TEXT UNIQUE
+```
+
+到底对不对，要先回答：
+
+```text
+一个 Repository 是否只允许创建一个 Project？
+
+是否允许不同 Workspace 导入同一个 Repository？
+
+同一 Repo 是否可能有不同 Branch / Configuration？
+```
+
+如果业务规则没有确定，就不能因为“看起来应该唯一”直接写约束。
+
+所以：
+
+> Database Constraint 必须有业务语义依据。
+
+`PRIMARY KEY` 是 Entity Identity 的基础约束。
+
+而普通字段上的：
+
+```text
+UNIQUE
+CHECK
+FOREIGN KEY
+```
+
+则需要结合具体业务规则设计。
+
+---
+
+### 12. Application Validation 和 Database Validation 为什么都需要
+
+这是一个非常重要的边界问题。
+
+例如：
+
+```text
+Project Name 不能为空
+```
+
+Application 可以：
+
+```ts
+z.string().trim().min(1);
+```
+
+数据库也可以：
+
+```sql
+name TEXT NOT NULL
+```
+
+这不是重复浪费。
+
+它们服务的是不同边界。
+
+#### Application Validation
+
+解决：
+
+```text
+HTTP Client
+   ↓
+Invalid Input
+   ↓
+尽早给出明确业务错误
+```
+
+目标是：
+
+```text
+开发体验
+API Contract
+业务语义
+```
+
+#### Database Constraint
+
+解决：
+
+```text
+任何数据库写入路径
+      ↓
+最终数据一致性
+```
+
+目标是：
+
+```text
+Persistence Integrity
+```
+
+所以：
+
+```text
+Application Validation
++
+Database Validation
+```
+
+不是二选一。
+
+---
+
+### 13. Repository Test 和真实数据库测试的边界
+
+接入 PostgreSQL 后，我也开始重新理解测试分层。
+
+Service Unit Test 不应该因为 Repository 换成 PostgreSQL 就突然需要数据库。
+
+例如：
+
+```text
+ProjectService
+      ↓
+Fake ProjectRepository
+```
+
+仍然应该能够快速、deterministic 地测试业务逻辑。
+
+而真正 SQL 是否正确：
+
+```text
+INSERT
+SELECT
+RETURNING
+column mapping
+constraint
+```
+
+则需要更接近数据库的 integration test。
+
+因此：
+
+```text
+Service Unit Test
+→ Fake Repository
+
+Repository / Integration Test
+→ Real PostgreSQL
+```
+
+它们证明的是不同问题。
+
+这和后面 LLM Testing 的：
+
+```text
+Service Unit Test
+→ Fake LLM
+
+Provider Smoke Test
+→ Real Model
+```
+
+其实是同一种 Testing Boundary 思维。
+
+---
+
+### 14. 为什么测试结束必须释放资源
+
+数据库测试还有一个前端时代不太常见的问题：
+
+```text
+Open Handle
+```
+
+如果测试创建了 Pool，却没有：
+
+```ts
+await pool.end();
+```
+
+Vitest 可能执行完 assertion 之后仍然无法正常退出。
+
+原因不是 Vitest 出问题，而是 Node.js Event Loop 中仍然存在活跃资源。
+
+因此测试需要明确：
+
+```ts
+afterAll(async () => {
+  await pool.end();
+});
+```
+
+或者按照实际测试生命周期使用：
+
+```ts
+afterEach(...)
+```
+
+这个问题让我进一步理解：
+
+> Backend Test 不只验证返回值，还必须管理真实 Resource Lifecycle。
+
+---
+
+### 15. FrontOps Agent 为什么需要 PostgreSQL
+
+目前 PostgreSQL 只保存 Project 这类基础数据。
+
+但 FrontOps Agent 最终还会需要持久化：
+
+```text
+Projects
+
+Imported Repositories
+
+Agent Tasks
+
+Task Status
+
+Human Approval State
+
+Tool Timeline
+
+Trace Metadata
+
+Eval Results
+
+Cost / Token / Latency Data
+```
+
+因此 PostgreSQL 并不是“为了学 Backend 顺手加一个数据库”。
+
+它最终会成为整个 Agent Platform 的持久状态基础。
+
+后续还会继续扩展：
+
+```text
+PostgreSQL
+    ↓
+pgvector
+    ↓
+Vector Retrieval
+```
+
+但当前阶段还没有必要提前学习这些内容。
+
+---
+
+### 16. 从前端状态管理映射到后端持久化
+
+对我最有帮助的一个映射是：
+
+```text
+Vue State
+≠
+Server State
+≠
+Persistent State
+```
+
+前端：
+
+```text
+ref()
+reactive()
+Pinia
+```
+
+解决的是当前 Client Runtime 中：
+
+```text
+UI 如何随着状态变化
+```
+
+而 PostgreSQL 解决的是：
+
+```text
+数据如何跨 Request
+跨 Process
+跨 Deployment
+长期存在
+```
+
+以前前端调用：
+
+```ts
+await api.createProject(...)
+```
+
+我更多关注：
+
+```text
+loading
+error
+cache invalidation
+UI update
+```
+
+现在站在 Backend 侧，需要继续考虑：
+
+```text
+Connection
+Query
+Constraint
+Transaction
+Persistence
+Resource Lifecycle
+```
+
+这是从“消费 API”到“实现可靠数据系统”的明显视角变化。
+
+---
+
+### 17. 最终形成的数据链
+
+完成 PostgreSQL 接入后，FrontOps Agent 第一周的 Backend 数据流已经形成：
+
+```text
+Client
+  ↓
+Fastify Route
+  ↓
+Runtime Validation
+  ↓
+Service
+  ↓
+Repository
+  ↓
+Parameterized SQL
+  ↓
+PostgreSQL
+  ↓
+Database Constraints
+```
+
+反向：
+
+```text
+PostgreSQL Row
+     ↓
+Repository Mapping
+     ↓
+Application Object
+     ↓
+Service
+     ↓
+Response Serialization
+     ↓
+Client
+```
+
+到这里，我已经不再只是：
+
+> “会用 Node.js 写接口。”
+
+而开始真正接触 Backend Engineering 的几个核心问题：
+
+```text
+Persistence
+Resource Lifecycle
+Data Integrity
+Boundary Mapping
+Testing
+```
+
+---
+
+## 把 LLM 从 API Demo 变成工程能力
+
+进入第二阶段之后，我终于开始真正接触 LLM API。
+
+如果只看最开始的代码，这件事似乎非常简单：
+
+```ts
+const response = await client.chat.completions.create({
+  model: 'deepseek-v4-flash',
+  messages: [
+    {
+      role: 'user',
+      content: 'Explain Vue reactivity.',
+    },
+  ],
+});
+```
+
+对于一个有多年 Web 开发经验的工程师来说，这段代码几乎没有学习门槛：创建 Client、发请求、等待 Promise、读取 Response。
+
+但这一阶段真正让我开始建立 AI Application Engineering 视角的地方，并不是“会调用模型 API”，而是逐渐意识到：
+
+> LLM API 的调用形式虽然像普通 HTTP API，但它带来的工程约束和普通 deterministic backend dependency 并不一样。
+
+这也是 FrontOps Agent 第一次真正从普通 Node.js Backend 向 AI Application 演进。
+
+### 1. 从 OpenAI API 切换到 DeepSeek：先学机制，而不是绑定 Provider
+
+最开始我使用 OpenAI API 做实验，但实际调用时遇到了 API credits 不足的问题。
+
+由于这一阶段的重点是：
+
+- Model API
+- Message
+- Structured Output
+- Tool Calling
+- Agent Loop
+- Runtime Validation
+- Timeout
+- Cancellation
+- Testing
+
+而不是某个特定 Provider，因此我把学习阶段的模型切换到了 DeepSeek。
+
+DeepSeek 提供 OpenAI-compatible API，所以仍然可以使用 `openai` Node SDK：
+
+```ts
+const deepSeekApiClient = new OpenAI({
+  apiKey: env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com',
+  timeout: 15_000,
+  maxRetries: 0,
+});
+```
+
+这次切换让我提前建立了一个很重要的概念：
+
+```text
+OpenAI SDK
+≠
+OpenAI Provider
+```
+
+SDK 是 Client/Protocol 层工具，而真正的 Provider 可以是 DeepSeek。
+
+因此后续架构里我没有让业务代码直接依赖 SDK，而是引入自己的 `LLMClient` boundary。
+
+---
+
+### 2. Conversation State 不是模型自动保存的
+
+第一次做多轮对话实验时，我构造了：
+
+```text
+system
+user
+```
+
+得到模型回复后，再把它作为 `assistant` message 放入第二次请求：
+
+```text
+system
+user
+assistant
+user
+```
+
+这让我确认了一件以前容易被聊天产品 UI 隐藏起来的事实：
+
+> Conversation State 首先是 Application State。
+
+最基础的 LLM API 并不是某个始终保存着全部聊天记录的对象。
+
+每次 inference 时，Application 都需要决定本次到底向模型提供哪些 context。
+
+因此随着多轮对话不断增长：
+
+```text
+Conversation History
+        ↓
+Input Context
+        ↓
+prompt_tokens
+        ↓
+Cost / Latency Pressure
+```
+
+这也是后续 Context Management、RAG、Agent State 和 Memory 问题出现的根源。
+
+---
+
+### 3. Context 是有限资源，不是垃圾桶
+
+我通过模型返回的 `usage` 做了两个实验。
+
+第一次只发送很短的 messages。
+
+第二次增加 conversation history 和模拟 Repository Context。
+
+结果很直接：
+
+```text
+Context ↑
+→ prompt_tokens ↑
+```
+
+这个现象看似简单，但对 FrontOps Agent 非常重要。
+
+未来 FrontOps Agent 面对的不是几行文本，而可能是数千甚至上万文件的 Vue / TypeScript Repository。
+
+最粗暴的设计：
+
+```text
+Whole Repository
+      ↓
+Model
+```
+
+不仅会增加 token cost，还可能增加 latency，并引入大量 irrelevant context。
+
+因此我开始把 Model Context 理解成一个昂贵的 runtime working set，而不是 persistent storage。
+
+更合理的长期方向一定是：
+
+```text
+User Question
+      ↓
+Search / Retrieve
+      ↓
+Relevant Context
+      ↓
+Model
+```
+
+也就是说，RAG 和 Tool Calling 并不是为了“让 Agent 看起来更智能”，而是在解决一个已经真实出现的 Context Engineering 问题。
+
+---
+
+### 4. Model Output 必须视为 Untrusted Input
+
+这一阶段最重要的工程认知之一，是把第一周学过的 Runtime Validation 迁移到了模型输出。
+
+假设模型应该返回：
+
+```ts
+type Analysis = {
+  summary: string;
+  riskLevel: 'low' | 'medium' | 'high';
+};
+```
+
+这种代码：
+
+```ts
+const result = JSON.parse(output) as Analysis;
+```
+
+实际上没有建立可靠 contract。
+
+`JSON.parse()` 只能回答：
+
+> 这是不是合法 JSON？
+
+它无法保证：
+
+```text
+summary 是不是 string
+riskLevel 是否存在
+riskLevel 是否属于允许的 enum
+```
+
+而：
+
+```ts
+as Analysis
+```
+
+只是 TypeScript compile-time assertion，不会在 Runtime 做任何验证。
+
+因此更准确的数据流应该是：
+
+```text
+Raw Model Output
+      ↓
+JSON.parse
+      ↓
+unknown
+      ↓
+Zod Runtime Validation
+      ↓
+Trusted Application Value
+```
+
+这里我也重新理解了 Prompt 和 Schema 的职责区别：
+
+```text
+Prompt Constraint
+→ influence generation
+
+Runtime Validation
+→ control acceptance
+```
+
+Prompt 可以要求模型返回合法数据，但不能成为 Application 接受数据的依据。
+
+Zod 也不能保证模型一定生成正确结果，它保证的是错误结果不会被当成可信业务数据继续执行。
+
+---
+
+### 5. 从 Demo 调用演进到 Provider Boundary
+
+实验阶段，我可以直接：
+
+```ts
+await client.chat.completions.create(...)
+```
+
+但进入 FrontOps Agent 正式代码之后，我不希望 `AnalysisService` 知道：
+
+- DeepSeek
+- OpenAI SDK
+- baseURL
+- Provider HTTP Status
+- API Key
+
+因此目前形成了：
+
+```text
+AnalysisService
+      ↓
+   LLMClient
+      ↑
+DeepSeekLLMClient
+      ↓
+OpenAI-compatible SDK
+      ↓
+DeepSeek
+```
+
+`AnalysisService` 负责业务行为：
+
+```ts
+return this.llm.generateText({
+  instruction: `
+    You are a senior frontend engineer.
+    Explain the provided frontend code clearly and concisely.
+  `,
+  content,
+});
+```
+
+而 `DeepSeekLLMClient` 负责：
+
+- Provider request mapping
+- Model selection
+- Provider response extraction
+- Provider error translation
+
+这让我第一次真正把 LLM 看成一种 Infrastructure Capability，而不是散落在 Service 中的 API 调用。
+
+当前 `generateText(): Promise<string>` 仍然只是教学阶段 abstraction。
+
+进入 Structured Outputs 和 Tool Calling 后，这个 interface 一定会继续演进。
+
+---
+
+### 6. LLM Client 生命周期：不是为了 Singleton Pattern
+
+SDK Client 在 application startup 阶段创建：
+
+```text
+Process Start
+     ↓
+new OpenAI(...)
+     ↓
+register module
+     ↓
+listen
+     ↓
+Request
+Request
+Request
+```
+
+而不是：
+
+```text
+Request
+  ↓
+new OpenAI()
+```
+
+这里的重点并不是背一个“LLM Client 应该使用 Singleton”规则。
+
+真正的原因是 SDK Client 保存的是稳定的 Infrastructure Configuration：
+
+- credential
+- endpoint
+- timeout
+- retry policy
+- HTTP configuration
+
+这些并不属于 request-specific state。
+
+因此更合理的方式是让它跟随 Application Process 生命周期，通过 Composition Root / Module Wiring 注入需要它的组件。
+
+这个思路和 PostgreSQL Pool 的生命周期设计原则类似，但两者的资源语义不同，因此不能简单认为 `OpenAI Client === DB Pool`。
+
+---
+
+### 7. Timeout、Abort、Retry 必须分开理解
+
+这一阶段第一次真正让我意识到：
+
+```text
+Timeout
+Abort
+Retry
+```
+
+不是同一件事。
+
+#### Timeout
+
+Timeout 是 Deadline Policy：
+
+> 这个操作最多允许执行多久。
+
+#### Abort
+
+Abort 是 Cancellation Mechanism：
+
+> 停止一个当前仍在执行的操作。
+
+#### Retry
+
+Retry 是新的 Execution Attempt：
+
+> 某次执行失败之后，再发起一次新的执行。
+
+这也是为什么：
+
+```ts
+Promise.race([modelCall(), timeoutPromise]);
+```
+
+并不等于真正的 cancellation。
+
+`Promise.race()` 可以让 Application 不再等待 `modelCall()`，但底层 HTTP 请求仍然可能继续运行。
+
+而在 Agent 场景里，这会继续消耗：
+
+- Network
+- Token
+- Cost
+- Tool resources
+
+因此我在 `LLMClient` 中加入了 `AbortSignal`：
+
+```ts
+export interface LLMClient {
+  generateText(
+    input: GenerateTextInput,
+    options?: {
+      signal?: AbortSignal;
+    },
+  ): Promise<string>;
+}
+```
+
+并让 signal 从 caller 一路传播：
+
+```text
+Caller
+  ↓
+AnalysisService
+  ↓
+LLMClient
+  ↓
+DeepSeekLLMClient
+  ↓
+Provider Request
+```
+
+这是后续 Agent Task Cancellation 的最小基础。
+
+---
+
+### 8. 为什么当前关闭 SDK 自动 Retry
+
+学习阶段我暂时配置：
+
+```ts
+maxRetries: 0;
+```
+
+这不是因为 Production LLM 永远不应该 retry。
+
+而是为了让当前执行模型保持清晰：
+
+```text
+1 Application Call
+=
+1 Provider Attempt
+```
+
+否则如果 SDK 内部自动 retry：
+
+```text
+10s timeout
+   ↓
+retry
+   ↓
+10s
+   ↓
+retry
+```
+
+Application 看到的一次调用可能已经变成多次真实 Provider Execution。
+
+到了 Agent 系统之后，Retry 还会继续和：
+
+- Token Cost
+- Global Deadline
+- Tool Side Effects
+- Idempotency
+- Retry Budget
+
+连接起来。
+
+因此这一阶段我先选择显式失败，后续再单独设计 Production Retry Policy。
+
+---
+
+### 9. Provider Error 需要 Translation
+
+业务代码不应该出现：
+
+```ts
+error instanceof OpenAI.APIError;
+```
+
+否则 Infrastructure-specific type 已经泄漏进 Application。
+
+因此 Provider Adapter 会把 SDK error 转成自己的 `LLMError`：
+
+```text
+SDK / DeepSeek Error
+        ↓
+DeepSeekLLMClient
+        ↓
+LLMError
+        ↓
+Application
+```
+
+例如可以抽象成：
+
+```text
+timeout
+cancelled
+rate_limit
+authentication
+insufficient_balance
+provider_unavailable
+unknown
+```
+
+这里还有一个很重要的 HTTP Boundary 问题。
+
+DeepSeek 返回：
+
+```http
+401 Unauthorized
+```
+
+并不意味着 FrontOps Agent 的最终用户没有登录。
+
+这个 `401` 表达的是：
+
+```text
+Our Backend
+   ↓
+DeepSeek Provider
+   ↓
+Provider Credential Failure
+```
+
+因此不能机械向 Vue Frontend 透传 `401`。
+
+Public API 和 Upstream Provider 处于不同语义边界。
+
+---
+
+### 10. AI Application 仍然需要传统测试
+
+这一阶段我把测试拆成四层。
+
+#### AnalysisService Unit Test
+
+使用 Fake `LLMClient`。
+
+它验证：
+
+- Application logic
+- dependency interaction
+- content forwarding
+- AbortSignal forwarding
+- failure propagation
+
+它不验证 DeepSeek。
+
+#### Route Test
+
+Mock Service。
+
+它验证：
+
+- HTTP Contract
+- Runtime Validation
+- Service Invocation
+- Response Serialization
+
+#### Real Model Smoke Test
+
+显式调用真实 DeepSeek。
+
+它验证的是：
+
+```text
+API Key
+Network
+SDK
+Provider
+Model
+```
+
+这一整条最基本集成链路是否仍然可用。
+
+Smoke Test 不进入默认 `pnpm test`，避免 watch mode 和普通 CI 无意中不断产生真实模型调用和费用。
+
+#### Future Agent Eval
+
+Eval 不负责验证 API 是否能调用，而负责：
+
+> Agent 的实际 AI 行为质量是否满足要求。
+
+例如：
+
+- 是否找到正确文件
+- Tool selection 是否正确
+- Patch 是否能通过 TypeCheck
+- 回答是否引用正确 source
+
+这让我明确区分了：
+
+```text
+Traditional Test
+→ Code Correctness
+
+Smoke Test
+→ Integration Availability
+
+Eval
+→ AI Behavior Quality
+```
+
+---
+
+### 11. 当前 FrontOps Agent 的变化
+
+第一周项目主要是：
+
+```text
+Route
+ ↓
+Service
+ ↓
+Repository
+ ↓
+PostgreSQL
+```
+
+现在开始变成：
+
+```text
+                    ┌→ Repository
+                    │      ↓
+Route → Service ────┤  PostgreSQL
+                    │
+                    └→ LLMClient
+                           ↓
+                    DeepSeekLLMClient
+                           ↓
+                       DeepSeek
+```
+
+FrontOps Agent 第一次同时拥有：
+
+```text
+Persistent Capability
++
+Model Capability
+```
+
+但现在还不能叫真正的 Agent。
+
+它仍然只是：
+
+```text
+Application
+   ↓
+Model
+   ↓
+Application
+```
+
+下一步 Structured Outputs、Tool Calling 和 Hand-written Agent Loop 才会逐渐让模型从“生成文本”转向“产生受控决策并驱动外部工具”。
+
+---
+
+### 12. 这一阶段的工程结论
+
+完成这一阶段以后，我当前最重要的认知不是“学会了 DeepSeek API”，而是这些更长期的原则：
+
+1. LLM 是 probabilistic external dependency，而不是 deterministic function。
+2. Conversation State 首先由 Application 管理。
+3. Context 是有限且昂贵的 runtime resource。
+4. Model Output 必须视为 untrusted input。
+5. Prompt Constraint 不能代替 Runtime Validation。
+6. Application 应依赖 LLM capability，而不是 Provider SDK。
+7. LLM Client 应有明确的 application-level lifecycle。
+8. Timeout、Abort、Retry 是三个不同问题。
+9. Cancellation 必须向下传播，不能只改变 UI 状态。
+10. Provider Error 不应该直接泄漏到 Application / Public API。
+11. Unit Test、Smoke Test、Eval 分别提供不同层次的 confidence。
+12. Agent Engineering 的基础仍然是 Backend Engineering，而不是 Prompt 技巧。
+
+这一阶段最大的变化，是我开始不再把 LLM 当成一个“返回智能文本的 API”。
+
+它正在逐渐变成 FrontOps Agent Runtime 中一个必须被：
+
+```text
+约束
+验证
+隔离
+取消
+测试
+观测
+```
+
+的外部执行能力。
+
+下一阶段，我会继续从 Message / Prompt Model 开始，为 Structured Outputs 和 Tool Calling 做准备。
