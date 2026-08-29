@@ -2,7 +2,7 @@
 title: 从前端开发到 AI Agent：我的 Agent 工程化学习与实践
 description: 用于记录和实践 AI Agent 工程化、工具调用、上下文管理与应用开发的实验项目。
 publishedAt: 2026-08-19
-updatedAt: 2026-08-25
+updatedAt: 2026-08-29
 tags:
   - AI Agent
   - TypeScript
@@ -3490,36 +3490,604 @@ Application
 
 ---
 
-### 12. 这一阶段的工程结论
+## 从文本生成到可编程数据：我如何为 AI Agent 建立 Structured Outputs 运行时边界
 
-完成这一阶段以后，我当前最重要的认知不是“学会了 DeepSeek API”，而是这些更长期的原则：
-
-1. LLM 是 probabilistic external dependency，而不是 deterministic function。
-2. Conversation State 首先由 Application 管理。
-3. Context 是有限且昂贵的 runtime resource。
-4. Model Output 必须视为 untrusted input。
-5. Prompt Constraint 不能代替 Runtime Validation。
-6. Application 应依赖 LLM capability，而不是 Provider SDK。
-7. LLM Client 应有明确的 application-level lifecycle。
-8. Timeout、Abort、Retry 是三个不同问题。
-9. Cancellation 必须向下传播，不能只改变 UI 状态。
-10. Provider Error 不应该直接泄漏到 Application / Public API。
-11. Unit Test、Smoke Test、Eval 分别提供不同层次的 confidence。
-12. Agent Engineering 的基础仍然是 Backend Engineering，而不是 Prompt 技巧。
-
-这一阶段最大的变化，是我开始不再把 LLM 当成一个“返回智能文本的 API”。
-
-它正在逐渐变成 FrontOps Agent Runtime 中一个必须被：
+在上一阶段，我已经把 LLM 调用整理成了相对稳定的工程结构：
 
 ```text
-约束
-验证
-隔离
-取消
-测试
-观测
+Application
+    ↓
+AnalysisService
+    ↓
+LLMClient
+    ↓
+DeepSeekLLMClient
+    ↓
+LLM Provider
 ```
 
-的外部执行能力。
+同时加入了 `Timeout`、`Abort`、`Retry`、`LLMError`、Provider Error Mapping、Unit Test 和 Real Model Smoke Test。
 
-下一阶段，我会继续从 Message / Prompt Model 开始，为 Structured Outputs 和 Tool Calling 做准备。
+但当我准备让 FrontOps Agent 不再只返回一段自然语言，而是返回可以被程序继续消费的数据时，一个新的问题出现了：
+
+> LLM 请求成功，不等于它返回的数据可以安全进入业务系统。
+
+这节课的重点因此不是“怎么让模型返回 JSON”，而是建立一条真正可验证的运行时边界：
+
+```text
+LLM Output
+    ↓
+Untrusted External Input
+    ↓
+JSON Syntax
+    ↓
+Schema Validation
+    ↓
+Trusted Object
+    ↓
+Application
+```
+
+这也是我第一次明显感觉到：AI Application Engineering 并没有绕开传统后端工程，反而因为模型输出具有更强的不确定性，更依赖 Runtime Validation、Error Boundary 和 Testing。
+
+---
+
+## `JSON.parse()` 只能证明 JSON 语法合法
+
+最开始最容易想到的实现是：
+
+```ts
+const result = JSON.parse(modelOutput);
+```
+
+但这只能证明：
+
+```text
+modelOutput
+→ Valid JSON Syntax
+```
+
+例如：
+
+```json
+{
+  "summary": 123,
+  "risks": "none"
+}
+```
+
+完全可以被 `JSON.parse()` 成功解析。
+
+但如果业务期望：
+
+```ts
+interface ProjectAnalysis {
+  summary: string;
+  risks: string[];
+}
+```
+
+这个结果依然不可用。
+
+因此我重新明确了三层不同问题：
+
+```text
+JSON.parse
+→ Syntax Validation
+
+Schema
+→ Structural Validation
+
+Business / Semantic Logic
+→ Content Validation
+```
+
+---
+
+## `as SomeType` 只是骗过 TypeScript
+
+```ts
+const result = JSON.parse(modelOutput) as ProjectAnalysis;
+```
+
+从 TypeScript 视角看，这之后 IDE 会提供完整类型提示，但这不是真正的类型安全。
+
+```text
+TypeScript Type
+→ Compile Time
+
+LLM Response
+→ Runtime
+```
+
+`as ProjectAnalysis` 只是开发者告诉编译器“相信我”。
+
+真正可靠的数据流应该是：
+
+```text
+unknown
+    ↓
+Runtime Validation
+    ↓
+ProjectAnalysis
+```
+
+---
+
+## Prompt、JSON Mode、Structured Outputs 和 Zod 是四个不同层次
+
+### Prompt
+
+Prompt 是模型指令，是概率性的行为约定，不是 Runtime Contract。
+
+### JSON Mode
+
+JSON Mode 主要保证：
+
+```text
+Model Output
+→ Valid JSON
+```
+
+但不保证符合业务 Schema。
+
+### Structured Outputs
+
+Structured Outputs 使用 JSON Schema 对生成过程施加结构约束：
+
+```text
+JSON Schema
+    ↓
+Provider Generation Constraint
+    ↓
+Schema-conforming Output
+```
+
+### Zod Runtime Validation
+
+即使 Provider 原生支持 Structured Outputs，我仍然保留：
+
+```ts
+schema.safeParse(raw);
+```
+
+因为 Provider 是外部系统，Application 自己仍然需要 Trust Boundary。
+
+因此我现在的理解是：
+
+```text
+Prompt
+→ Semantic Instruction
+
+JSON Mode
+→ JSON Syntax Guarantee
+
+Structured Outputs
+→ Provider-side Structural Constraint
+
+Zod
+→ Application Runtime Trust Boundary
+```
+
+---
+
+## Zod 成为 Structured Output 的 Single Source of Truth
+
+```ts
+import { z } from 'zod';
+
+export const projectAnalysisSchema = z.strictObject({
+  summary: z.string().min(1),
+  architecture: z.array(z.string().min(1)),
+  risks: z.array(z.string().min(1)),
+});
+
+export type ProjectAnalysis = z.infer<typeof projectAnalysisSchema>;
+```
+
+然后：
+
+```ts
+const jsonSchema = z.toJSONSchema(projectAnalysisSchema);
+```
+
+这样同一个 Schema 同时承担：
+
+```text
+Zod Schema
+├── TypeScript Type
+├── JSON Schema
+└── Runtime Validation
+```
+
+避免维护 `interface + Zod + JSON Schema` 三份 Contract。
+
+---
+
+## 为什么我使用 `z.strictObject`
+
+对于 LLM Structured Output，我更希望额外字段被识别为 Contract Violation，而不是被静默 strip。
+
+```json
+{
+  "summary": "Vue application",
+  "architecture": ["Vue 3"],
+  "risks": [],
+  "unexpected": true
+}
+```
+
+当前阶段我希望这个结果直接 Validation Failure。
+
+---
+
+## 从 `generateText()` 演进到 `generateObject()`
+
+错误的第一反应可能是：
+
+```ts
+async function generateObject<T>(): Promise<T> {
+  return JSON.parse(content) as T;
+}
+```
+
+这里的 `T` 只存在于 Compile Time。
+
+因此最终采用 Schema First：
+
+```ts
+const result = await llm.generateObject({
+  prompt,
+  schema: projectAnalysisSchema,
+});
+```
+
+而不是：
+
+```ts
+generateObject<ProjectAnalysis>();
+```
+
+类型来自 Runtime Schema，而不是开发者手写断言。
+
+---
+
+## `AnalysisService` 不应该知道 Provider 如何实现 Structured Output
+
+当前职责边界是：
+
+```text
+AnalysisService
+→ 分析什么
+→ Semantic Requirement
+
+ProjectAnalysisSchema
+→ 输出长什么样
+→ Structural Requirement
+
+DeepSeekLLMClient
+→ 如何从 Provider 可靠得到对象
+→ LLM Runtime Mechanics
+```
+
+因此 `AnalysisService` 不应该知道：
+
+```text
+DeepSeek
+JSON Mode
+response_format
+JSON.parse
+z.toJSONSchema
+```
+
+---
+
+## 当前 DeepSeek 实现仍是 JSON Mode + Runtime Validation
+
+当前数据流：
+
+```text
+Zod Schema
+    ↓
+JSON Schema
+    ↓
+Prompt Instruction
+    ↓
+DeepSeek JSON Mode
+    ↓
+JSON.parse
+    ↓
+unknown
+    ↓
+Zod safeParse
+    ↓
+Trusted Object
+```
+
+这里必须明确：
+
+> 把 JSON Schema 放进 Prompt 仍然只是 Prompt Instruction，不等于 Native Structured Outputs。
+
+未来如果 Provider / Model 支持 Native JSON Schema，变化应该封装在 Adapter 内。
+
+---
+
+## Provider Capability 不应该泄漏到业务层
+
+业务代码不应该出现：
+
+```ts
+if (provider === 'deepseek') {
+  ...
+}
+```
+
+也不应该让调用方传：
+
+```ts
+useNativeJsonSchema: false;
+```
+
+调用方只表达 Intent：
+
+```ts
+generateObject({
+  prompt,
+  schema,
+});
+```
+
+当前项目只有一个 DeepSeek Adapter，所以我没有提前实现 `CapabilityRegistry`、`ProviderStrategyFactory` 或 `ModelCapabilityResolver`。
+
+---
+
+## Structured Output 不能破坏之前的工程能力
+
+在改造 `generateObject()` 时，我一度遗漏了 `AbortSignal`。
+
+这个问题提醒我：
+
+```text
+旧工程能力
+    +
+新 Agent 能力
+    ↓
+更完整的 Runtime
+```
+
+而不是进入新章节后重新写一个孤立 Demo。
+
+`Timeout`、`Abort`、`Retry`、Error Boundary、Testing 都应该继续存在。
+
+---
+
+## Structured Output Error Boundary
+
+一次 `generateObject()` 可能失败于：
+
+```text
+Provider Request
+    ↓
+No Choice
+    ↓
+Output Truncated
+    ↓
+Empty Content
+    ↓
+JSON.parse
+    ↓
+Zod Validation
+```
+
+因此我区分：
+
+```text
+invalid_response
+empty_response
+output_truncated
+invalid_json
+invalid_structured_output
+```
+
+并使用：
+
+```text
+LLMError.code
+→ 稳定分类
+
+cause
+→ 详细 Root Cause
+```
+
+避免把所有失败压成一个 `Invalid LLM Response`。
+
+---
+
+## `output_truncated` 和 `invalid_json` 不能混在一起
+
+`finish_reason === length` 可能最终产生非法 JSON，但真正 Root Cause 是 Generation Incomplete。
+
+所以必须先判断 `finish_reason`，再进入 `JSON.parse()`。
+
+这能保留正确的 Failure Semantic，也为未来 Debugging、Observability、Retry Policy 和 Cost Decision 提供依据。
+
+---
+
+## 测试暴露了 Production Dependency 过宽
+
+`DeepSeekLLMClient` 原本依赖完整 `OpenAI`，但实际只使用 `chat.completions.create()`。
+
+为了测试而伪造完整 SDK Client 很笨重，因此我把依赖缩窄为 Infrastructure-level 的 `ChatCompletionsClient`。
+
+这不是为了抽象而抽象，而是：
+
+```text
+真实测试痛点
+    ↓
+发现依赖过宽
+    ↓
+缩窄 Dependency
+```
+
+---
+
+## Generic `generateObject()` 与 Test Double
+
+`generateObject()` 是 Generic Method：
+
+```ts
+generateObject<TSchema extends ZodType>(
+  input: GenerateObjectInput<TSchema>,
+): Promise<output<TSchema>>
+```
+
+直接使用 `vi.fn().mockResolvedValue(...)` 容易遇到 Generic contextual typing 问题。
+
+我最终没有为了测试框架去破坏 Production Type Design，而是倾向：
+
+```text
+Production Generic API
+保持正确
+
+Test Double
+使用 Fake / Spy
+```
+
+这让我更加明确：
+
+> Testability 很重要，但测试框架的限制不应该反向污染正确的 Production Contract。
+
+---
+
+## Structured Output Testing 的分层
+
+| Test                    | 职责                                    |
+| ----------------------- | --------------------------------------- |
+| `ProjectAnalysisSchema` | Schema Rules                            |
+| `DeepSeekLLMClient`     | Provider Response → Validated Object    |
+| `AnalysisService`       | Prompt、Schema Selection、Business Flow |
+| Route Test              | HTTP Request / Response Contract        |
+| Real Model Smoke Test   | Provider Integration                    |
+| Future Eval             | Model / Agent Output Quality            |
+
+每层只验证自己的 Boundary，避免重复测试。
+
+---
+
+## Smoke Test 和 Eval 不是一回事
+
+Smoke Test 回答：
+
+> 系统现在还能不能与真实 Provider 正常工作？
+
+Eval 回答：
+
+> 模型或 Agent 完成任务的质量是否达标？
+
+例如是否准确识别 Pinia、Risk Recall 是否足够、引用文件是否准确，都属于未来 Eval。
+
+---
+
+## Schema Valid 不等于答案正确
+
+```json
+{
+  "architecture": ["Pinia"]
+}
+```
+
+即使通过 Schema，也只能证明：
+
+```text
+architecture
+→ string[]
+```
+
+不能证明 Repository 真的使用了 Pinia。
+
+因此：
+
+```text
+Schema Valid
+≠
+Semantically Correct
+```
+
+---
+
+## Schema Valid 也不等于 Safe To Execute
+
+未来 Tool Calling 中：
+
+```json
+{
+  "path": "../../../etc/passwd"
+}
+```
+
+完全可能通过：
+
+```ts
+z.object({
+  path: z.string(),
+});
+```
+
+但执行前仍然需要检查：
+
+```text
+Path 是否存在
+Normalize 后是否位于 Repository Root
+当前 User / Agent 是否有权限
+当前 Operation 是否允许
+是否需要 Human Approval
+```
+
+所以：
+
+```text
+Schema Validation
+→ Data Shape Trust
+
+Permission / Security / Policy
+→ Operation Trust
+```
+
+---
+
+## Schema 越严格不一定越好
+
+如果：
+
+```ts
+riskType: z.enum(['performance', 'security', 'maintainability']);
+```
+
+但真实问题是 `accessibility`，模型可能漏掉问题或被迫错误分类。
+
+因此 Schema Design 本身也是 Information Model Design，需要在 Reliability 与 Expressiveness 之间权衡。
+
+---
+
+## 本课最终工程结论
+
+我现在会对任何 Model Output 依次问：
+
+```text
+1. Parseable?
+2. Schema Valid?
+3. Semantically Correct?
+4. Grounded?
+5. Allowed?
+6. High Quality?
+```
+
+当前阶段真正实现的是前两层。
+
+后面的 Grounding、RAG、Permission、Agent Security、Human Approval、Eval 会在 FrontOps Agent 后续阶段继续补齐。
+
+这节课让我真正理解到：
+
+> Structured Outputs 不是“让 LLM 返回 JSON”，而是为不可信模型输出建立可编程、可验证、可测试的 Runtime Contract。
+
+下一阶段进入 Tool Calling 后，模型输出将开始驱动程序执行。到那时，Runtime Validation 不再只是代码质量问题，而会直接成为 Agent Runtime 的执行边界。
