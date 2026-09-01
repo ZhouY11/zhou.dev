@@ -8,7 +8,7 @@ import { visualizer } from 'rollup-plugin-visualizer';
 
 const deployPlatform = env.DEPLOY_PLATFORM ?? 'local';
 
-const site = env.SITE_URL ?? 'https://zhou-dev.vercel.app';
+const site = env.SITE_URL ?? 'https://zhoudev.com';
 
 const isVercel = deployPlatform === 'vercel';
 
